@@ -1,0 +1,17 @@
+---
+title: "Christel Lacaze Swift"
+image: christel_drawing.jpeg
+about:
+  template: jolla
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: https://www.linkedin.com/in/christellacazeswift/
+    - icon: github
+      text: Github
+      href: https://github.com/ChristelSwift
+---
+
+Sharing some approaches I'm using in my current work which is mainly to do with media measurement.
+
+All coded examples are written in R.
