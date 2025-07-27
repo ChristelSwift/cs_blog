@@ -1,0 +1,459 @@
+---
+title: "Content Association using Market Basket Analysis"
+author:
+  - name: Christel Lacaze Swift
+    affiliation: BBC
+    email: christel.swift@bbc.co.uk
+    attributes:
+        corresponding: true
+abstract: |
+  Finding prgrammes that have a strong affinity can be done using Market Basket Analysis (also called Frequent itemset analysis or Affinity anlaysis), an approach first developed for physical grocery stores to understand items that are frequently bought together in the shame shopping trip.
+date: 2025-07-01
+categories: [content association, market basket analysis, graph networks]
+keywords: 
+  - content association
+  - market basket analysis 
+  - graph networks
+description: >
+  Applying Market Basket Analysis and Graph Networks to show the strength of association between programmes.
+format: html
+bibliography: bibliography.bib
+toc: true
+number-sections: true
+image: "killing_eve_star.png"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r warning=FALSE, message=FALSE, results='hide'}
+suppressPackageStartupMessages(library(tidyverse))
+library(recommenderlab) # to use the MovieLense dataset
+library(janitor) # to use the clean_names function
+library(visNetwork) # to create the network graph
+
+options(java.parameters = c("-XX:+UseConcMarkSweepGC", "-Xmx32g"))
+gc()
+
+theme_set(theme_classic()) # sets the ggplot theme for the session
+options(scipen = 999) # so that numbers don't display with the exponent
+options(dplyr.summarise.inform = FALSE) # to suppress annoying grouping warning
+```
+
+In the age of expanding online catalogue availability, recommendation engines were developed to help find the most relevant content for users. These rely on large datasets of users interactions with items, for example viewers history on subscription online video platforms such as Netflix. The most commonly used approaches are based on collaborative filtering using matrix factorization such as ALS, see [@zhou2008].
+
+In this post, we will see how we can calculate association between programmes using a different approach based on **Market Basket Analysis**, and how we can visualise the results with **Network Graphs**.
+
+# a quick review of Market Basket Analysis
+
+As the name suggests, this approach was developed to understand what people tend to buy together on a shopping trip, i.e. what ends up in their groceries baskets. By finding sets of items that are often bought together, a physical store can re-arrange their layout and place frequent item sets in close proximity.
+
+By extension, the same applies to online stores in the form of prompted recommendations, such as "people who bought this item also bought...".
+
+For a full explanation of this topic using R's arules package, please check [@arules].
+
+Market Basket metrics are derived from measuring conditional probabilities. In the simple setting of just looking at pairs of items (itemset size = 2), if we have items A and B, for example eggs and bacon, then:\
+- $\text{support} = P(A \text{AND} B)$ = joint probability.\
+- $\text{confidence} = P(B/A)$ = conditional probability.\
+- $\text{lift} = P(A \text{AND} B)/[P(A)*P(B)]$ = deviation from independent probabilities.
+
+Both the support and the lift are symmetrical measures: support(A,B) = support(B,A). However the confidence is not symmetrical.
+
+The lift can take any values between $] -\infty, +\infty[$.\
+A lift of 1 means there is no association, the 2 events are independent.\
+A lift \< 1 means there is a negative association between the 2 events: buying one makes you less likely to buy the other.\
+A lift \> 1 means there is a positive association between the 2 events: buying one makes you more likely to buy the other.
+
+# applying to the MovieLense dataset
+
+To demonstrate how to find films that are strongly associated, we will use the MovieLense dataset that is made available in the R package `recommenderlab`. It contains about 100,000 ratings from 943 users on 1664 movies.
+
+## preparing the dataset
+
+```{r}
+data("MovieLense")
+str(MovieLense)
+```
+
+The data is stored as a realRatingMatrix object so we first turn it into a dataframe:
+
+```{r}
+films_rld <- summary(MovieLense@data) %>% as.data.frame()
+
+names(films_rld) <- c("user_id", "film_id", "rating")
+
+head(films_rld)
+```
+
+```{r}
+n_users <- n_distinct(films_rld$user_id)
+
+films_rld %>% 
+  summarise(
+    n_rows = n(),
+    n_users = n_distinct(user_id),
+    n_progs = n_distinct(film_id)
+  )
+```
+
+Let's keep the films id and name in a separate dataset:
+
+```{r}
+film_ids <- data.frame(
+  id = 1:length(unlist(MovieLense@data@Dimnames[2]) ),
+  name = unlist(MovieLense@data@Dimnames[2]) 
+) 
+
+head(film_ids)  
+```
+
+The top ten most watched films are:
+
+```{r}
+films_rld %>% 
+  group_by(film_id) %>% 
+  summarise(reach = n()) %>% 
+  arrange(desc(reach)) %>% 
+  head(10) %>% 
+  left_join(
+    film_ids %>% 
+      rename(film_id = id),
+    by = "film_id"
+  ) %>% 
+  select(name, film_id, reach)
+```
+
+Let's check the distribution of ratings and of the number of items per user:
+
+```{r}
+films_rld %>% 
+  group_by(rating) %>% 
+  summarise(n = n()) %>% 
+  mutate(pc = n / sum(n)) %>% 
+  ggplot(aes(x = rating, y = pc)) +
+  geom_bar(stat = "identity", fill = "darkorange") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "distribution of the ratings")
+```
+
+Judging from the distribution of ratings, we'll take ratings = 4 or 5 to indicate a positive rating.
+
+```{r}
+temp <- films_rld %>% 
+  group_by(user_id) %>% 
+  summarise(n_progs = n())
+
+temp %>% 
+  group_by(n_progs) %>% 
+  summarise(n_users = n()) %>% 
+  ggplot(aes(x = n_progs, y = n_users)) +
+  geom_bar(stat = "identity", fill = "slateblue") +
+  labs(title = "distribution of the number of programmes per user")
+```
+
+```{r}
+summary(temp$n_progs)
+```
+
+In this dataset each user has rated at least 19 films, and up to 735.
+
+Let's filter the dataset based on ratings $\ge$ 4.
+
+```{r}
+films_rld <- films_rld %>% 
+  filter(rating >= 4)
+
+films_rld %>% 
+  summarise(
+    n_rows = n(),
+    n_users = n_distinct(user_id),
+    n_progs = n_distinct(film_id)
+  )
+```
+
+By removing negative ratings, we are left with about 55k interactions.
+
+The `MovieLenseMeta` dataset contains the film genres but each film can have more than one:
+
+```{r}
+film_genres <- MovieLenseMeta %>% 
+  select(-year, -url, -unknown) %>% 
+  clean_names() %>% 
+  mutate(id = row_number()) %>% 
+  # bring all the genres together into one string:
+  unite("genre", action:western, remove = FALSE) %>% 
+  pivot_longer(action:western) %>% 
+  filter(value == 1) %>% 
+  select(-value) %>% 
+  group_by(id, title, genre) %>% 
+  summarise(genres = str_c(name, collapse = ", "))
+
+head(film_genres)
+```
+
+## calculating the lift
+
+We can now calculate the lift between all pairs of films. Recall that the lift measures the deviation from the assumption of independence, so to calculate the lift between films A and B, we will need:
+
+$P(A)=\cfrac{\text{\# of users who watched A}}{\text{\# of users}}$
+
+$P(B)=\cfrac{\text{\# of users who watched B}}{\text{\# of users}}$
+
+$P(A \cap B)=\cfrac{\text{\# of users who watched A AND B}}{\text{\# of users}}$
+
+As we have 1433 films, this leads to 1433 \* 1432 / 2 = 1,026,028 possible pairs of distinct items.
+
+```{r all pairs of items}
+all_pairs_summary <- films_rld %>% 
+  rename(item1 = film_id) %>% 
+  select(user_id, item1) %>% 
+  full_join(
+    films_rld %>% 
+      rename(item2 = film_id) %>% 
+      select(user_id, item2),
+    by = "user_id",
+    relationship = "many-to-many"
+  ) %>% 
+  group_by(item1, item2) %>% 
+  summarise(
+    n = n(),
+    pc = n / n_users
+    ) %>% 
+  ungroup()
+
+head(all_pairs_summary)
+```
+
+The first entry is simply the reach of item 1, then for item1 != item2, this shows the joint reach of the 2 items, i.e. the **support**. We can now calculate the **confidence** = P(B/A):
+
+```{r add confidence}
+all_pairs_summary <- all_pairs_summary %>% 
+  # add n1:
+  left_join(
+    all_pairs_summary %>% 
+      filter(item1 == item2) %>% 
+      rename(n1 = n) %>% 
+      select(item1, n1),
+      by = "item1"
+  ) %>% 
+  # add n2:
+  left_join(
+    all_pairs_summary %>% 
+      filter(item1 == item2) %>% 
+      rename(n2 = n) %>% 
+      select(item2, n2),
+      by = "item2"
+  ) %>% 
+  # confidence(A, B) = P(B / A)
+  mutate(
+    confidenceAB = n / n1,
+    confidenceBA = n / n2
+    )
+
+head(all_pairs_summary)
+```
+
+and the **lift** = P(A AND B) / ( P(A)\*P(B) ):
+
+```{r add lift}
+all_pairs_summary <- all_pairs_summary %>% 
+  left_join(
+    # item1:
+    all_pairs_summary %>% 
+      filter(item1 == item2) %>% 
+      rename(pc1 = pc) %>% 
+      select(item1, pc1),
+      by = "item1"
+  ) %>% 
+  left_join(
+    # item2:
+    all_pairs_summary %>% 
+      filter(item1 == item2) %>% 
+      rename(pc2 = pc) %>% 
+      select(item2, pc2),
+      by = "item2"
+  ) %>% 
+  # remove trivial cases of pair of same item:
+  filter(item1 != item2) %>% 
+  mutate(
+    indep_prob = pc1 * pc2,
+    lift = pc / (pc1 * pc2)
+    ) %>% 
+  rename(support = pc)
+
+head(all_pairs_summary)
+```
+
+How to read this? Looking at the first row:
+
+-   30 users have liked both items 1 and 2. Amongst all 943 users, this is a joint reach of 3.2%.
+
+-   321 users have liked item 1 (n1). Amongst those, 30 have liked item 2, therefore the confidence on that side is 30 / 321 = 9.35%.
+
+-   51 users have liked item 2 (n2). Amongst those, 30 have liked item 2, therefore the confidence on that side is 30 / 51 = 58.82%.
+
+-   the reach of item 1 is 34.04% and the reach of item 2 is 5.4%, so if both were independent, the probability of liking both would be 34.04% x 5.4% = 1.84%, however we observed this joint probability to be 3.2% (i.e. the support), therefore the lift is 3.2% / 1.84% = 1.72, in other words people who like item 1 are 1.72 times more likely to like item 2 and vice versa.
+
+As some cells have low number of observations, it's best to set a threshold when analysing the results, for example n = 50. Let's see the pairs of films that are most strongly associated:
+
+```{r}
+all_pairs_summary %>% 
+  filter(n1 >= 50, n2 >= 50) %>% 
+  # only keep one side of the pairs:
+  filter(item1 < item2) %>% 
+  arrange(desc(lift)) %>% 
+  head(10) %>% 
+  # add film title for item 1:
+  left_join(
+    film_ids %>% 
+      rename(
+        item1 = id,
+        film1 = name
+        ),
+    by = "item1"
+  ) %>% 
+  # add film title for item 2:
+  left_join(
+    film_ids %>% 
+      rename(
+        item2 = id,
+        film2 = name
+        ),
+    by = "item2"
+  ) %>% 
+  select(film1, film2, lift)
+```
+
+This makes perfect sense: people who liked Pinocchio are 9 times more likely to also like Dumbo etc.
+
+Check the films that are most strongly associated with Toy Story:
+
+```{r}
+toy_story_top10 <- all_pairs_summary %>% 
+  filter(n1 >= 50, n2 >= 50) %>% 
+  # only keep Toy Story:
+  filter(item1 == 1) %>% 
+  arrange(desc(lift)) %>% 
+  head(10) %>% 
+  # add film title for item 1:
+  left_join(
+    film_ids %>% 
+      rename(
+        item1 = id,
+        film1 = name
+        ),
+    by = "item1"
+  ) %>% 
+  # add film title for item 2:
+  left_join(
+    film_ids %>% 
+      rename(
+        item2 = id,
+        film2 = name
+        ),
+    by = "item2"
+  ) 
+
+toy_story_top10 %>% 
+  select(film1, film2, lift)
+```
+
+The top 10 films most strongly associated with Toy Story are all as we would expect, mostly Disney animation films and films for children.
+
+## visualisation with network graph
+
+To create an interactive visualisation of the top 10 programmes most strongly associated with Toy Story, we can use R's package `visNetwork`.
+
+First we prepare the nodes dataframe, which needs at least the columns `id` and `label`, and optionally the columns `size`, `title` and `color`.
+
+```{r}
+# use a scaling factor so the graph displays ok:
+scaling_factor <- 10
+
+# define set of colours that work with visNetwork:
+my_cols <- c(
+  "coral", "cornflowerblue","darkblue", "darkcyan", 
+  "hotpink", "darkgreen", "darkkhaki", "darkmagenta", 
+  "darkolivegreen", "darkorange",  "springgreen", "steelblue",  
+"thistle", "tomato", "turquoise", "maroon", "wheat", "yellow", "yellowgreen")
+
+
+# for the nodes we need an id, label and size columns:
+my_nodes <- rbind(
+  # toy story:
+  toy_story_top10 %>% 
+    select(item1, film1) %>% 
+    distinct() %>% 
+    rename(
+      id = item1,
+      label = film1
+      ),
+  # top 10 films most strongly associated:
+  toy_story_top10 %>% 
+    select(item2, film2) %>% 
+    rename(
+      id = item2,
+      label = film2
+      )
+) %>% 
+  # add reach per item using the dataset of positive ratings:
+  left_join(
+    films_rld %>% 
+      rename(id = film_id) %>% 
+      group_by(id) %>% 
+      summarise(size = n()/scaling_factor),
+    by = "id"
+  ) %>% 
+  # add the film genres:
+  left_join(
+    film_genres,
+    by = "id"
+  ) %>% 
+  # add a title in html that will be displayed 
+  # when hovering over the node:
+  mutate(
+    color = my_cols[as.numeric(as.factor(genre))],
+    title = paste0(
+    "<p><b>title = </b>", label,"<br>",
+    "<b>reach = </b>", size*scaling_factor, "<br>",
+    "<b>genres = </b>", genres, 
+    "</p>") 
+  )
+
+my_nodes %>% 
+  select(id, label, size, genres)
+```
+
+Next, we prepare the dataframe of edges which are the links between items. It needs at least the columns `to` and `from` referencing the item ids:
+
+```{r}
+my_edges <- toy_story_top10 %>% 
+  rename(
+    to = item2,
+    from = item1
+  ) %>% 
+  mutate(title = paste0("lift = ", round(lift, digits = 2))) %>% 
+  select(to, from, title)
+
+
+head(my_edges)
+```
+
+```{r}
+visNetwork(my_nodes, my_edges) %>%
+  visInteraction(navigationButtons = TRUE)
+```
+
+The graph is dynamic:\
+- click on the nodes to get the number of users who liked the film, and the film's genres.\
+- click on the edges to get the value of the lift.\
+- if 2 labels overlap, you can move around the nodes to see them better.
+
+The size of the bubbles is proportional to the number of viewers and the colors correspond to the group of genres for each film.
+
+# conclusion
+
+In this post we showed how we can find items that are liked by the same group of people using the Lift, a metric from Market Basket Analysis that measures the deviation from the assumption of independence. The Lift is an easy metric to explain: a lift of 3 means that people who liked item 1 are 3 times more likely to also like item 2 and vice versa.
+
+Using Network Graphs we can display the results in a visually appealing way.
