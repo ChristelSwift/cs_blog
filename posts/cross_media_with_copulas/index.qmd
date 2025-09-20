@@ -68,6 +68,8 @@ The main families of copulas are the **elliptical** (e.g. Gaussian and Student-t
 
 Different copulas allow for different dependence shapes, including asymmetrical, and different emphasis on the tails.
 
+These plots show the resulting bi-variate distributions of normal margins \$N(0,1)\$ using different copulas:
+
 ![examples of copulas](copula_2d_examples.png)
 
 The Archimedean copulas only take one parameter which means they can only be used when we assume the same dependence between all pairs of variables.
@@ -1636,7 +1638,7 @@ for(i in 1:length(cats)){
 
 #### multivariate comparison
 
-What happens when we calculate the reach for 2, 3, 4... all genres? let's start with the smallest genres and add the next bigger genre at each step.
+What happens when we calculate the reach for 2, 3, 4... all stations? let's start with the biggest station and add the next bigger station at each step.
 
 ```{r}
 station_ranking <- db %>% 
