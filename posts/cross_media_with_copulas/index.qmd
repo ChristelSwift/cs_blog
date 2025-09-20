@@ -68,7 +68,7 @@ The main families of copulas are the **elliptical** (e.g. Gaussian and Student-t
 
 Different copulas allow for different dependence shapes, including asymmetrical, and different emphasis on the tails.
 
-These plots show the resulting bi-variate distributions of normal margins \$N(0,1)\$ using different copulas:
+These plots show the resulting bi-variate distributions of normal margins $N(0,1)$ using different copulas:
 
 ![examples of copulas](copula_2d_examples.png)
 
