@@ -1891,7 +1891,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb81-4"><a href="#cb81-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">all_of</span>(stations), <span class="at">names_to =</span> <span class="st">"var2"</span>, <span class="at">values_to =</span> <span class="st">"cor"</span>) <span class="sc">%&gt;%</span> </span>
 <span id="cb81-5"><a href="#cb81-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(var1 <span class="sc">&gt;</span> var2)</span>
 <span id="cb81-6"><a href="#cb81-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb81-7"><a href="#cb81-7" aria-hidden="true" tabindex="-1"></a><span class="co"># check genres with the lowest correlations:</span></span>
+<span id="cb81-7"><a href="#cb81-7" aria-hidden="true" tabindex="-1"></a><span class="co"># check stations with the lowest correlations:</span></span>
 <span id="cb81-8"><a href="#cb81-8" aria-hidden="true" tabindex="-1"></a>spearman_cor_db <span class="sc">%&gt;%</span> </span>
 <span id="cb81-9"><a href="#cb81-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(cor)) <span class="sc">%&gt;%</span> </span>
 <span id="cb81-10"><a href="#cb81-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -2012,7 +2012,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb91-14"><a href="#cb91-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> value, <span class="at">col =</span> source)) <span class="sc">+</span></span>
 <span id="cb91-15"><a href="#cb91-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_density</span>() <span class="sc">+</span></span>
 <span id="cb91-16"><a href="#cb91-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>name,  <span class="at">ncol =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
-<span id="cb91-17"><a href="#cb91-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"actual vs simulated genre distributions"</span>) <span class="sc">+</span></span>
+<span id="cb91-17"><a href="#cb91-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"actual vs simulated station distributions"</span>) <span class="sc">+</span></span>
 <span id="cb91-18"><a href="#cb91-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
@@ -2068,7 +2068,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb94-4"><a href="#cb94-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>,  <span class="at">col =</span> <span class="st">"grey"</span>) <span class="sc">+</span></span>
 <span id="cb94-5"><a href="#cb94-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">expand_limits</span>(<span class="at">x =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.2</span>, <span class="fl">0.3</span>), <span class="at">y =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.2</span>, <span class="fl">0.3</span>)) <span class="sc">+</span></span>
 <span id="cb94-6"><a href="#cb94-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb94-7"><a href="#cb94-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"V1: genre pairwise Spearman correlations"</span>,</span>
+<span id="cb94-7"><a href="#cb94-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"V1: station pairwise Spearman correlations"</span>,</span>
 <span id="cb94-8"><a href="#cb94-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"actual correlations"</span>, <span class="at">y =</span> <span class="st">"simulated correlations"</span></span>
 <span id="cb94-9"><a href="#cb94-9" aria-hidden="true" tabindex="-1"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
@@ -2085,9 +2085,9 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 - cat1: light users (first tertile based on non-null values).<br>
 - cat2: medium users (second tertile based on non-null values).<br>
 - cat3: heavy users (third tertile based on non-null values).</p>
-<p>Then we calculate the percentage reach for all pairs of genres and all categories: P(X = cat0 and Y = cat0) etc…</p>
+<p>Then we calculate the percentage reach for all pairs of stations and all categories: P(X = cat0 and Y = cat0) etc…</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb95"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create all possible pairs of genres:</span></span>
+<div class="sourceCode cell-code" id="cb95"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create all possible pairs of stations:</span></span>
 <span id="cb95-2"><a href="#cb95-2" aria-hidden="true" tabindex="-1"></a>my_grid <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
 <span id="cb95-3"><a href="#cb95-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">var1 =</span> stations,</span>
 <span id="cb95-4"><a href="#cb95-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">var2 =</span> stations,</span>
@@ -2165,13 +2165,13 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 </div>
 </div>
 <p>When looking at the pairwise distributions we notice that:<br>
-- the non-users of both genres (cat0) are well aligned with small differences.<br>
-- the light-users of both genres (cat1) are systematically under-estimated.</p>
+- the non-users of both stations (cat0) are well aligned with small differences.<br>
+- the light-users of both stations (cat1) are systematically under-estimated.</p>
 <p>There is quite a spread in the weight of listening categories but these are based on very small sample size, and what matters most are the combined zero categories.</p>
 </section>
 <section id="multivariate-comparison-1" class="level4" data-number="3.2.1.3">
 <h4 data-number="3.2.1.3" class="anchored" data-anchor-id="multivariate-comparison-1"><span class="header-section-number">3.2.1.3</span> multivariate comparison</h4>
-<p>What happens when we calculate the reach for 2, 3, 4… all genres? let’s start with the smallest genres and add the next bigger genre at each step.</p>
+<p>What happens when we calculate the reach for 2, 3, 4… all stations? let’s start with the biggest station and add the next bigger station at each step.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb98"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a>station_ranking <span class="ot">&lt;-</span> db <span class="sc">%&gt;%</span> </span>
 <span id="cb98-2"><a href="#cb98-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">all_of</span>(stations)) <span class="sc">%&gt;%</span> </span>
@@ -2203,7 +2203,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb100-11"><a href="#cb100-11" aria-hidden="true" tabindex="-1"></a>  sim_comb_sum <span class="ot">&lt;-</span>  <span class="fu">rowSums</span>(sim_mat)</span>
 <span id="cb100-12"><a href="#cb100-12" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb100-13"><a href="#cb100-13" aria-hidden="true" tabindex="-1"></a>  my_list[[i<span class="dv">-1</span>]] <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb100-14"><a href="#cb100-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">genre_combination =</span> <span class="fu">paste</span>(my_stations<span class="sc">$</span>name, <span class="at">collapse =</span> <span class="st">", "</span>),</span>
+<span id="cb100-14"><a href="#cb100-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">station_combination =</span> <span class="fu">paste</span>(my_stations<span class="sc">$</span>name, <span class="at">collapse =</span> <span class="st">", "</span>),</span>
 <span id="cb100-15"><a href="#cb100-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">n1 =</span> <span class="fu">ncol</span>(actual_mat),</span>
 <span id="cb100-16"><a href="#cb100-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">n2 =</span> <span class="fu">ncol</span>(sim_mat),</span>
 <span id="cb100-17"><a href="#cb100-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">actual_pc =</span> <span class="fu">sum</span>(actual_comb_sum <span class="sc">&gt;</span> <span class="dv">0</span>) <span class="sc">/</span> <span class="fu">length</span>(actual_comb_sum),</span>
@@ -2215,7 +2215,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb100-23"><a href="#cb100-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb100-24"><a href="#cb100-24" aria-hidden="true" tabindex="-1"></a>multivariate_v1 <span class="sc">%&gt;%</span> <span class="fu">head</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                  genre_combination n1 n2 actual_pc  sim_pc
+<pre><code>                station_combination n1 n2 actual_pc  sim_pc
 1                          st3, st5  2  2   0.46381 0.47550
 2                     st3, st5, st1  3  3   0.56756 0.57095
 3                st3, st5, st1, st7  4  4   0.59904 0.61112
@@ -2244,7 +2244,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb103"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb103-1"><a href="#cb103-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span>(multivariate_v1, <span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                                         genre_combination n1 n2 actual_pc
+<pre><code>                                       station_combination n1 n2 actual_pc
 10 st3, st5, st1, st7, st9, st6, st4, st11, st8, st2, st10 11 11   0.62651
     sim_pc
 10 0.66793</code></pre>
@@ -2259,7 +2259,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <p>In R, we can use the convenient function <code>psych::phi2tetra</code> to find the Tetrachoric correlation that corresponds to the combination of a “Phi coefficient”, i.e.&nbsp;the correlation between the two binary vectors, as well as their marginals.</p>
 <p>Calculate the tetrachoric correlation for all pairs of stations that include the zero value:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb105"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb105-1"><a href="#cb105-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create all possible pairs of genres:</span></span>
+<div class="sourceCode cell-code" id="cb105"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb105-1"><a href="#cb105-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create all possible pairs of stations:</span></span>
 <span id="cb105-2"><a href="#cb105-2" aria-hidden="true" tabindex="-1"></a>all_pairs <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
 <span id="cb105-3"><a href="#cb105-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">var1 =</span> stations,</span>
 <span id="cb105-4"><a href="#cb105-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">var2 =</span> stations,</span>
@@ -2279,14 +2279,14 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb105-18"><a href="#cb105-18" aria-hidden="true" tabindex="-1"></a>  v1 <span class="ot">&lt;-</span> all_pairs<span class="sc">$</span>var1[i]</span>
 <span id="cb105-19"><a href="#cb105-19" aria-hidden="true" tabindex="-1"></a>  v2 <span class="ot">&lt;-</span> all_pairs<span class="sc">$</span>var2[i]</span>
 <span id="cb105-20"><a href="#cb105-20" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb105-21"><a href="#cb105-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># transform the 1st genre to binary:</span></span>
+<span id="cb105-21"><a href="#cb105-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># transform the 1st station to binary:</span></span>
 <span id="cb105-22"><a href="#cb105-22" aria-hidden="true" tabindex="-1"></a>  x1 <span class="ot">&lt;-</span> db <span class="sc">%&gt;%</span> </span>
 <span id="cb105-23"><a href="#cb105-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">!!</span><span class="fu">sym</span>(v1)) <span class="sc">%&gt;%</span> </span>
 <span id="cb105-24"><a href="#cb105-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rename</span>(<span class="at">v1 =</span> <span class="sc">!!</span><span class="fu">sym</span>(v1)) <span class="sc">%&gt;%</span> </span>
 <span id="cb105-25"><a href="#cb105-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">v1 =</span> <span class="fu">ifelse</span>(v1 <span class="sc">&gt;</span> <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>)) <span class="sc">%&gt;%</span> </span>
 <span id="cb105-26"><a href="#cb105-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>(v1)</span>
 <span id="cb105-27"><a href="#cb105-27" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb105-28"><a href="#cb105-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># transform the 2nd genre to binary:</span></span>
+<span id="cb105-28"><a href="#cb105-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># transform the 2nd station to binary:</span></span>
 <span id="cb105-29"><a href="#cb105-29" aria-hidden="true" tabindex="-1"></a>  x2 <span class="ot">&lt;-</span> db <span class="sc">%&gt;%</span> </span>
 <span id="cb105-30"><a href="#cb105-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">!!</span><span class="fu">sym</span>(v2)) <span class="sc">%&gt;%</span> </span>
 <span id="cb105-31"><a href="#cb105-31" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rename</span>(<span class="at">v2 =</span> <span class="sc">!!</span><span class="fu">sym</span>(v2)) <span class="sc">%&gt;%</span> </span>
@@ -2362,7 +2362,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb110-11"><a href="#cb110-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>phi_coef),</span>
 <span id="cb110-12"><a href="#cb110-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># diagonal of 1s:</span></span>
 <span id="cb110-13"><a href="#cb110-13" aria-hidden="true" tabindex="-1"></a>  diag,</span>
-<span id="cb110-14"><a href="#cb110-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># lower triangle obtained by inversing genre1 and genre2:</span></span>
+<span id="cb110-14"><a href="#cb110-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># lower triangle obtained by inversing station1 and station2:</span></span>
 <span id="cb110-15"><a href="#cb110-15" aria-hidden="true" tabindex="-1"></a>  all_pairs <span class="sc">%&gt;%</span> </span>
 <span id="cb110-16"><a href="#cb110-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>phi_coef) <span class="sc">%&gt;%</span> </span>
 <span id="cb110-17"><a href="#cb110-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rename</span>(</span>
@@ -2519,7 +2519,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb122-14"><a href="#cb122-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> value, <span class="at">col =</span> source)) <span class="sc">+</span></span>
 <span id="cb122-15"><a href="#cb122-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_density</span>() <span class="sc">+</span></span>
 <span id="cb122-16"><a href="#cb122-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>name, <span class="at">ncol =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
-<span id="cb122-17"><a href="#cb122-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"V2: actual vs simulated genre distributions"</span>) <span class="sc">+</span></span>
+<span id="cb122-17"><a href="#cb122-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"V2: actual vs simulated station distributions"</span>) <span class="sc">+</span></span>
 <span id="cb122-18"><a href="#cb122-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
@@ -2575,7 +2575,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb125-4"><a href="#cb125-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>,  <span class="at">col =</span> <span class="st">"grey"</span>) <span class="sc">+</span></span>
 <span id="cb125-5"><a href="#cb125-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">expand_limits</span>(<span class="at">x =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.2</span>, <span class="fl">0.3</span>), <span class="at">y =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.2</span>, <span class="fl">0.3</span>)) <span class="sc">+</span></span>
 <span id="cb125-6"><a href="#cb125-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb125-7"><a href="#cb125-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"V2: genre pairwise Spearman correlations"</span>,</span>
+<span id="cb125-7"><a href="#cb125-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"V2: station pairwise Spearman correlations"</span>,</span>
 <span id="cb125-8"><a href="#cb125-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"actual correlations"</span>, <span class="at">y =</span> <span class="st">"simulated correlations"</span></span>
 <span id="cb125-9"><a href="#cb125-9" aria-hidden="true" tabindex="-1"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
@@ -2592,9 +2592,9 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 - cat1: light users (first tertile based on non-null values).<br>
 - cat2: medium users (second tertile based on non-null values).<br>
 - cat3: heavy users (third tertile based on non-null values).</p>
-<p>Then we calculate the percentage reach for all pairs of genres and all categories: P(X = cat0 and Y = cat0) etc…</p>
+<p>Then we calculate the percentage reach for all pairs of stations and all categories: P(X = cat0 and Y = cat0) etc…</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb126"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb126-1"><a href="#cb126-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create all possible pairs of genres:</span></span>
+<div class="sourceCode cell-code" id="cb126"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb126-1"><a href="#cb126-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create all possible pairs of stations:</span></span>
 <span id="cb126-2"><a href="#cb126-2" aria-hidden="true" tabindex="-1"></a>my_grid <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
 <span id="cb126-3"><a href="#cb126-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">var1 =</span> stations,</span>
 <span id="cb126-4"><a href="#cb126-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">var2 =</span> stations,</span>
@@ -2708,7 +2708,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb131-11"><a href="#cb131-11" aria-hidden="true" tabindex="-1"></a>  sim_comb_sum <span class="ot">&lt;-</span>  <span class="fu">rowSums</span>(sim_mat)</span>
 <span id="cb131-12"><a href="#cb131-12" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb131-13"><a href="#cb131-13" aria-hidden="true" tabindex="-1"></a>  my_list[[i<span class="dv">-1</span>]] <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb131-14"><a href="#cb131-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">genre_combination =</span> <span class="fu">paste</span>(my_stations<span class="sc">$</span>name, <span class="at">collapse =</span> <span class="st">", "</span>),</span>
+<span id="cb131-14"><a href="#cb131-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">station_combination =</span> <span class="fu">paste</span>(my_stations<span class="sc">$</span>name, <span class="at">collapse =</span> <span class="st">", "</span>),</span>
 <span id="cb131-15"><a href="#cb131-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">n1 =</span> <span class="fu">ncol</span>(actual_mat),</span>
 <span id="cb131-16"><a href="#cb131-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">n2 =</span> <span class="fu">ncol</span>(sim_mat),</span>
 <span id="cb131-17"><a href="#cb131-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">actual_pc =</span> <span class="fu">sum</span>(actual_comb_sum <span class="sc">&gt;</span> <span class="dv">0</span>) <span class="sc">/</span> <span class="fu">length</span>(actual_comb_sum),</span>
@@ -2720,7 +2720,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <span id="cb131-23"><a href="#cb131-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb131-24"><a href="#cb131-24" aria-hidden="true" tabindex="-1"></a>multivariate_v2 <span class="sc">%&gt;%</span> <span class="fu">head</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                  genre_combination n1 n2 actual_pc  sim_pc
+<pre><code>                station_combination n1 n2 actual_pc  sim_pc
 1                          st3, st5  2  2   0.46381 0.46432
 2                     st3, st5, st1  3  3   0.56756 0.56544
 3                st3, st5, st1, st7  4  4   0.59904 0.59791
@@ -2749,7 +2749,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb134"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb134-1"><a href="#cb134-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span>(multivariate_v2, <span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                                         genre_combination n1 n2 actual_pc
+<pre><code>                                       station_combination n1 n2 actual_pc
 10 st3, st5, st1, st7, st9, st6, st4, st11, st8, st2, st10 11 11   0.62651
     sim_pc
 10 0.62896</code></pre>

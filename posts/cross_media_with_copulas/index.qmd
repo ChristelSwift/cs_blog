@@ -1090,7 +1090,7 @@ spearman_cor_db <- spearman_cor %>%
   pivot_longer(all_of(stations), names_to = "var2", values_to = "cor") %>% 
   filter(var1 > var2)
 
-# check genres with the lowest correlations:
+# check stations with the lowest correlations:
 spearman_cor_db %>% 
   arrange(desc(cor)) %>% 
   head()
@@ -1168,7 +1168,7 @@ rbind(
   ggplot(aes(x = value, col = source)) +
   geom_density() +
   facet_wrap(~name,  ncol = 3) +
-  labs(title = "actual vs simulated genre distributions") +
+  labs(title = "actual vs simulated station distributions") +
   theme(legend.position = "bottom")
 ```
 
@@ -1209,7 +1209,7 @@ compare_corrs %>%
   geom_abline(slope = 1,  col = "grey") +
   expand_limits(x = c(-0.2, 0.3), y = c(-0.2, 0.3)) +
   labs(
-    title = "V1: genre pairwise Spearman correlations",
+    title = "V1: station pairwise Spearman correlations",
     x = "actual correlations", y = "simulated correlations"
     )
 ```
@@ -1222,10 +1222,10 @@ Next we can check the bivariate results for each pair of stations. To do this, w
 - cat2: medium users (second tertile based on non-null values).\
 - cat3: heavy users (third tertile based on non-null values).
 
-Then we calculate the percentage reach for all pairs of genres and all categories: P(X = cat0 and Y = cat0) etc...
+Then we calculate the percentage reach for all pairs of stations and all categories: P(X = cat0 and Y = cat0) etc...
 
 ```{r warning = FALSE}
-# create all possible pairs of genres:
+# create all possible pairs of stations:
 my_grid <- expand.grid(
   var1 = stations,
   var2 = stations,
@@ -1267,14 +1267,14 @@ for(i in 1:length(cats)){
 ```
 
 When looking at the pairwise distributions we notice that:\
-- the non-users of both genres (cat0) are well aligned with small differences.\
-- the light-users of both genres (cat1) are systematically under-estimated.
+- the non-users of both stations (cat0) are well aligned with small differences.\
+- the light-users of both stations (cat1) are systematically under-estimated.
 
 There is quite a spread in the weight of listening categories but these are based on very small sample size, and what matters most are the combined zero categories.
 
 #### multivariate comparison
 
-What happens when we calculate the reach for 2, 3, 4... all genres? let's start with the smallest genres and add the next bigger genre at each step.
+What happens when we calculate the reach for 2, 3, 4... all stations? let's start with the biggest station and add the next bigger station at each step.
 
 ```{r}
 station_ranking <- db %>% 
@@ -1301,7 +1301,7 @@ for(i in 2:nrow(station_ranking)){
   sim_comb_sum <-  rowSums(sim_mat)
   
   my_list[[i-1]] <- data.frame(
-    genre_combination = paste(my_stations$name, collapse = ", "),
+    station_combination = paste(my_stations$name, collapse = ", "),
     n1 = ncol(actual_mat),
     n2 = ncol(sim_mat),
     actual_pc = sum(actual_comb_sum > 0) / length(actual_comb_sum),
@@ -1341,7 +1341,7 @@ In R, we can use the convenient function `psych::phi2tetra` to find the Tetracho
 Calculate the tetrachoric correlation for all pairs of stations that include the zero value:
 
 ```{r warning=FALSE}
-# create all possible pairs of genres:
+# create all possible pairs of stations:
 all_pairs <- expand.grid(
   var1 = stations,
   var2 = stations,
@@ -1361,14 +1361,14 @@ for(i in 1:nrow(all_pairs)){
   v1 <- all_pairs$var1[i]
   v2 <- all_pairs$var2[i]
   
-  # transform the 1st genre to binary:
+  # transform the 1st station to binary:
   x1 <- db %>% 
     select(!!sym(v1)) %>% 
     rename(v1 = !!sym(v1)) %>% 
     mutate(v1 = ifelse(v1 > 0, 1, 0)) %>% 
     pull(v1)
   
-  # transform the 2nd genre to binary:
+  # transform the 2nd station to binary:
   x2 <- db %>% 
     select(!!sym(v2)) %>% 
     rename(v2 = !!sym(v2)) %>% 
@@ -1424,7 +1424,7 @@ tcc_df <- rbind(
     select(-phi_coef),
   # diagonal of 1s:
   diag,
-  # lower triangle obtained by inversing genre1 and genre2:
+  # lower triangle obtained by inversing station1 and station2:
   all_pairs %>% 
     select(-phi_coef) %>% 
     rename(
@@ -1536,7 +1536,7 @@ rbind(
   ggplot(aes(x = value, col = source)) +
   geom_density() +
   facet_wrap(~name, ncol = 3) +
-  labs(title = "V2: actual vs simulated genre distributions") +
+  labs(title = "V2: actual vs simulated station distributions") +
   theme(legend.position = "bottom")
 ```
 
@@ -1577,7 +1577,7 @@ compare_corrs %>%
   geom_abline(slope = 1,  col = "grey") +
   expand_limits(x = c(-0.2, 0.3), y = c(-0.2, 0.3)) +
   labs(
-    title = "V2: genre pairwise Spearman correlations",
+    title = "V2: station pairwise Spearman correlations",
     x = "actual correlations", y = "simulated correlations"
     )
 ```
@@ -1590,10 +1590,10 @@ Next we can check the bivariate results for each pair of stations. To do this, w
 - cat2: medium users (second tertile based on non-null values).\
 - cat3: heavy users (third tertile based on non-null values).
 
-Then we calculate the percentage reach for all pairs of genres and all categories: P(X = cat0 and Y = cat0) etc...
+Then we calculate the percentage reach for all pairs of stations and all categories: P(X = cat0 and Y = cat0) etc...
 
 ```{r warning = FALSE}
-# create all possible pairs of genres:
+# create all possible pairs of stations:
 my_grid <- expand.grid(
   var1 = stations,
   var2 = stations,
@@ -1665,7 +1665,7 @@ for(i in 2:nrow(station_ranking)){
   sim_comb_sum <-  rowSums(sim_mat)
   
   my_list[[i-1]] <- data.frame(
-    genre_combination = paste(my_stations$name, collapse = ", "),
+    station_combination = paste(my_stations$name, collapse = ", "),
     n1 = ncol(actual_mat),
     n2 = ncol(sim_mat),
     actual_pc = sum(actual_comb_sum > 0) / length(actual_comb_sum),
