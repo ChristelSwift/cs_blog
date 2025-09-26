@@ -2257,7 +2257,7 @@ st5 -0.11805906 -0.035349917  0.046261723  0.260834006  1.00000000</code></pre>
 <h3 data-number="3.2.2" class="anchored" data-anchor-id="using-tetrachoric-correlation"><span class="header-section-number">3.2.2</span> using Tetrachoric correlation</h3>
 <p>The <strong>polychoric</strong> correlation is a technique for estimating the correlation between two hypothesised normally distributed continuous latent variables, from two observed ordinal variables. <strong>Tetrachoric</strong> correlation is a special case of the polychoric correlation applicable when both observed variables are dichotomous. (source: wikipedia).</p>
 <p>In R, we can use the convenient function <code>psych::phi2tetra</code> to find the Tetrachoric correlation that corresponds to the combination of a “Phi coefficient”, i.e.&nbsp;the correlation between the two binary vectors, as well as their marginals.</p>
-<p>Calculate the tetrachoric correlation for all pairs of genres that include the zero value:</p>
+<p>Calculate the tetrachoric correlation for all pairs of stations that include the zero value:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb105"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb105-1"><a href="#cb105-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create all possible pairs of genres:</span></span>
 <span id="cb105-2"><a href="#cb105-2" aria-hidden="true" tabindex="-1"></a>all_pairs <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>

@@ -1338,7 +1338,7 @@ The **polychoric** correlation is a technique for estimating the correlation bet
 
 In R, we can use the convenient function `psych::phi2tetra` to find the Tetrachoric correlation that corresponds to the combination of a “Phi coefficient”, i.e. the correlation between the two binary vectors, as well as their marginals.
 
-Calculate the tetrachoric correlation for all pairs of genres that include the zero value:
+Calculate the tetrachoric correlation for all pairs of stations that include the zero value:
 
 ```{r warning=FALSE}
 # create all possible pairs of genres:
