@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/from_sim_to_pmvnorm/index.html",
       "/posts/cross_media_with_copulas/index.html",
       "/posts/content_association/index.html"
     ]
