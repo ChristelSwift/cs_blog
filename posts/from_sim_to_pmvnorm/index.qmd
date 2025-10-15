@@ -47,7 +47,9 @@ options(dplyr.summarise.inform = FALSE) # to suppress annoying grouping warning
 
 In a previous [post](https://christelswift.github.io/cs_blog/posts/cross_media_with_copulas/), I showed how we can use some marginal distributions (e.g. separate media measurements) and link them with a correlation matrix to derive an estimate of combined reach using a Gaussian copula.  This was done by creating a simulation of 100k data points from the Gaussian copula and by mapping the resulting Normal margins to the observed margins using their quantiles. Then we can simply analyse results based on that simulated dataset and get cross media reach for any time spent threshold, as well as the solus reach from each media.  
 
-In this post I will show how we can also do this without simulating a dataset, just by using the multivariate Normal cumulative distribution.   
+In this post I will show how we can also do this without simulating a dataset, just by using the multivariate Normal cumulative distribution.   As it doesn't have a closed form solution, we will use the convenient `pmvnorm` function from the `mvtnorm` package to estimate the probability $P(X_1 \in [l_1, u_1], ... , X_n \in [l_n, u_n])$.  This function implements the methodology described in [@genz]. 
+
+![Bivariate Normal Cumulative Distribution](cumulative_normal_plot.png)
 
 First I will show how to use the quantile distribution in the univariate case, then the bivariate case using a simulated dataset, and finally using the Bacon and Eggs dataset.  
 
@@ -55,15 +57,18 @@ First I will show how to use the quantile distribution in the univariate case, t
 
 # simulated univariate example
 
-In this [post](https://christelswift.github.io/cs_blog/posts/cross_media_with_copulas/), we turned a continuous simulation into discrete values. To get the probability that our multivariate distribution is in a specific region, for example $P(X_1 = 0, ... , X_n = 0)$, we used the results from the simulated dataset, but this can also be done using the quantiles of the cumulative continuous distribution. 
+In this previous [post](https://christelswift.github.io/cs_blog/posts/cross_media_with_copulas/), we turned a multivariate continuous simulation into discrete values. To get the probability that our multivariate distribution is in a specific region, for example $P(X_1 = 0, ... , X_n = 0)$, we then used the results from the simulated transformed dataset, but this can also be done using the quantiles of the cumulative continuous distribution. 
 
-To work through a simple example and show how to correctly set the bounds of the region, we can start by looking at an univariate case. We start with a random sample from a Poisson distribution, derive their observed cumulative distribution, create a simple univariate normal simulation and transform it by mapping its continuous values to the observed quantiles in exactly the same way as before.
+In this section we will take the simple example of one variable to demonstrate how we map the values from a random sample from $N(0,1)$ onto any observed discrete distribution.  Then we will show how  to correctly set the bounds of a region of interest with discrete values. 
 
-Note that when we simulate a cross-media dataset from currencies we will not have an observed full dataset, just some margins and an empirical correlation matrix from a separate study. The steps described below with the univariate case will seem overly complicated but their only purpose is to illustrate how to correctly set the bounds of the cumulative distribution.  When we move to the multivariate case, this will help to understand how to correctly define the marginal regions of the cumulative multivariate normal distribution.  
+Let's start with a random sample from a Poisson distribution.  We will: 
+- derive their observed cumulative distribution,   
+- create a simple univariate normal simulation and   
+- transform it by mapping its continuous values to the observed quantiles in exactly the same way as before.
 
-As the cumulative multivariate normal distribution does not have a closed form solution, we will use the convenient `pmvnorm` function from the `mvtnorm` package to estimate the probability $P(X_1 \in [l_1, u_1], ... , X_n \in [l_n, u_n])$.  This function implements the methodology described in [@genz]. 
+Note that when we simulate a cross-media dataset from currencies we will not have an observed full dataset, just some observed margins from separate datasets and an empirical correlation matrix from a separate study. The steps described below with the univariate case will seem overly complicated but their only purpose is to illustrate how to correctly set the bounds of the cumulative distribution.  When we move to the multivariate case, this will help to understand how to correctly define the marginal regions of the cumulative multivariate normal distribution.  
 
-First, we create a simulated dataset using a Poisson with parameter $\lambda = 2$:
+First, we create a simulated dataset using a Poisson with parameter $\lambda = 2$, this will be our "observed" dataset:
 
 ```{r}
 set.seed(4)
@@ -113,7 +118,7 @@ p2 <- actual_distr %>%
 
 p1 + p2
 ```
-Each bar on the cumulative distribution shows the observed probability that our variable is below a specified value, for example $F(X=1) = P(X \leq 1) = P(X=0) + P(X=1)$
+Each bar on the cumulative distribution on the right shows the observed probability that our variable is below a specified value, for example $F(X=1) = P(X \leq 1) = P(X=0) + P(X=1)$
 
 Now, as we would do in the multivariate case where we recreate a simulated dataset using just the margins and a correlation matrix, here in the univariate case we start by creating a simulation from a $N(0,1)$:
 
@@ -174,7 +179,7 @@ p2 <- simdata %>%
 p1 + p2
 ```
 
-For example we see that on the right hand side, the first value corresponding to $P(X = 0)$ is $p = F(X) = 0.1367$, i.e. 13.67% of the observed dataset has the value 0.\. This is our first critical value: in our simulated dataset on the left, we have to find the value of $z$ such that $p = \Phi(Z)) = 0.1367$.  To do this we use the **quantile function** which is the inverse of the cumulative distribution function, i.e. for a given cumulative percentage on the y axis, the quantile function gives the corresponding value on the x axis.  
+For example we see that on the left hand side, the first value corresponding to $P(X = 0)$ is $p = F(X) = 0.1367$, i.e. 13.67% of the observed dataset has the value 0. This is our first critical value: in our simulated dataset on the right, we have to find the value of $z$ such that $p = \Phi(Z)) = 0.1367$.  To do this we use the **quantile function** which is the inverse of the cumulative distribution function, i.e. for a given cumulative percentage on the y axis, the quantile function gives the corresponding value on the x axis.  
 
 ```{r}
 quantile(simdata$value, probs = 0.1367)
@@ -196,6 +201,9 @@ The full list of thresholds that we have to apply to the simulated $N(0,1)$ is g
 ```{r}
 quantile(simdata$value, actual_distr$cumpc)
 ```
+
+(Note that we use the `quantile` function rather than `pnorm` because we are working with a dataset rather than the underlying distribution.)
+
 
 Now we map the cumulative distributions of this simulated $N(0,1)$ to the observed cumulative distributions:
 
@@ -270,7 +278,7 @@ rbind(
 
 =\> as expected the observed and simulated frequencies are a perfect match.
 
-Now say we want to calculate the probability that $X \in [1,2]$, using the underlying Normal distribution rather than the simulated dataset:
+Now say we want to calculate the probability that $X \in [1,2]$:
 
 ```{r}
 actual_distr %>% 
@@ -279,10 +287,10 @@ actual_distr %>%
   head()
 ```
 
-Looking at the observed cumulative distribution $F(X)$, this would be the area corresponding to $Y \leq 0.676$ minus $Y \leq 0.137$:
+Looking at the observed cumulative distribution $F(X)$, this would be the area corresponding to $\text{cumpc} \leq 0.676$ minus $\text{cumpc} \leq 0.137$:
 
 $$P(X \in [1,2]) = P(X\leq 2) - P(X=0) = F(X=2) - F(X=0)$$
-
+Let's write the thresholds for $X$:
 ```{r}
 thresholds <- data.frame(
   name = "x",
@@ -321,12 +329,12 @@ quantile_bounds <- actual_distr %>%
 quantile_bounds
 ```
 
-In the univariate case, the answer is simply the difference between upper_cumpc and lower_cumpc, ie $P(X \in [1,2] = 53.9\%$.  When we move to the multivariate case this step will give us the required lower and upper bounds of the cumulative distribution of each observed discrete margin, and it will then make use of the correlation to estimate the corresponding cumulative multivariate distribution.
+In the univariate case, the answer is simply the difference between upper_cumpc and lower_cumpc, ie $P(X \in [1,2]) = 53.9\%$.  When we move to the multivariate case this step will give us the required lower and upper bounds of the cumulative distribution of each observed discrete margin, and it will then make use of the correlation to estimate the corresponding cumulative multivariate distribution.
 
 
 # simulated multivariate example
 
-Now we create a bivariate discrete dataset with a specified correlation. We start by creating a bivariate Normal with the given correlation, then we arbitrarily map the margins to discrete values:
+To illustrate the multivariate case, we create a bivariate discrete dataset with a specified correlation. We start by creating a bivariate Normal with the given correlation, then we arbitrarily map the margins to discrete values:
 
 ```{r}
 set.seed(13)
@@ -374,7 +382,8 @@ margins <- rbind(
     mutate(cumpc = cumsum(pc))
 )
 
-# check we add back to 1 by looking at the cumulative distribution at the maximum x value:  
+# check we add back to 1 by looking at 
+# the cumulative distribution at the maximum x value:  
 margins %>% 
   filter(value == 5)
 ```
@@ -448,7 +457,10 @@ db %>%
   geom_bar(stat="identity", fill="slateblue") +
   scale_x_continuous(breaks = 0:8) +
   scale_y_continuous(labels = scales::percent) +
-  geom_text(vjust = -0.2, size=3, aes(label=scales::percent(pc, accuracy = 1))) +
+  geom_text(
+    aes(label=scales::percent(pc, accuracy = 1)),
+    vjust = -0.2, size=3
+    ) +
   facet_wrap(~name) +
   labs(title = "bivariate discrete: marginal observed frequencies")
 ```
@@ -567,7 +579,7 @@ sim_db %>%
   summarise(pc = sum(x1 >= 2 & x1 <= 3 & x2 >= 2 & x2 <= 3) / nrow(sim_db))
 ```
 
-or we can use the multivariate equivalent of `pnorm`, i.e. `mvtnorm::pmvnorm` which needs as arguments the lower and upper limits of the margins of the multivariate cumulative distribution.
+or we can use the multivariate equivalent of `pnorm`, i.e. `mvtnorm::pmvnorm` which needs as arguments the lower and upper limits of the region of interest on the margins of the multivariate cumulative distribution.
 
 ```{r}
 thresholds <- data.frame(
@@ -731,7 +743,7 @@ p1 + p2
 
 For $X_1$ we want to find the cumulative % in the observed distribution such that we are in the region where $X_1 \in [1,3]$.  These are the y values $(0.25, 0.80)$ on the left hand side.  We then have to find their corresponding quantiles on $N(0,1)$ using the `qnorm` function.  These are $(-0.674, 0.842)$ (see the x values on the plot on the right), and they define the quantile region of the first margin in our cumulative multivariate normal.  
 
-Doing the same exercise with $X_2$ gives the values $(0.279, 1.55)$ and we can plug them in `mvtnorm::pmvnorm` along with our observed Spearman correlation:
+Doing the same exercise with $X_2$ gives the quantile values $(0.279, 1.55)$ on $N(0,1)$ and we can plug them in `mvtnorm::pmvnorm` along with our observed Spearman correlation:
 
 ```{r}
 region_prob <- pmvnorm(
@@ -744,7 +756,7 @@ region_prob <- pmvnorm(
 region_prob[1]
 ```
 
-=\> very close to the result found with the simulated dataset.
+This is the same result we found with the simulated dataset: $P(X_1 \in [2,3], X_2 \in [2,3]) = 19.7\%$
 
 Let's put this into a function and compare actual, simulated and pmvnorm results for all possible pairs of values:
 
@@ -1069,18 +1081,7 @@ tcc_corr
 ```
 
 
-Rather than running a simulation, we can use the cumulative distribution of the multivariate normal.  It has no closed-form solution but we can use `mvtnorm:pmvtnorm`.
-
-The cross product reach is:  
-
-$P(X_1 > 0 \cup X_2 > 0) = 1 - P(X_1 = 0 \cap X_2 = 0)$
-
-So the actual value is:
-```{r}
-db %>% 
-  summarise(cross_reach = sum( (bacon + eggs) > 0 ) / nrow(db)) %>% 
-  mutate(source = "actual")
-```
+Rather than running a simulation, we can use the cumulative distribution of the multivariate normal to recover the multivariate distribution. 
 
 Say we want to find the probability that eggs and bacon are between 1 and 2 units: 
 
@@ -1251,7 +1252,7 @@ pmvnorm_pairs_pc <- bind_rows(my_list) %>%
 head(pmvnorm_pairs_pc)
 ```
 
-Compare actual and sim:
+Compare actual and pmvnorm:
 ```{r}
 compare <- rbind(
   actual_pairs_pc %>% select(-n),
@@ -1262,8 +1263,6 @@ compare <- rbind(
 head(compare)
 ```
 
-
-Compare actual and pmvnorm:
 ```{r}
 compare %>%
   ggplot(aes(x = actual, y = pmvnorm)) +
@@ -1277,7 +1276,7 @@ compare %>%
 It works!
 
 
-For a better view of how close the simulation is to pmvnorm, we can look at the log values:
+For a better view of how close the results from pmvnorm are to the actual values, we can look at the log values:
 ```{r}
 compare %>%
   ggplot(aes(x = log(actual), y = log(pmvnorm))) +
@@ -1322,6 +1321,7 @@ The full distribution of the number of products bought is perfectly preserved.
 
 # Conclusion
 
-In this post we saw that given just their marginal distributions and a correlation matrix we can recover the entire reach and frequency distribution of a multivariate distribution using the appropriate bounds of the multivariate normal cumulative distribution. This approach is an elegant and stable alternative to creating a simulated dataset.   
+In this post we saw that given just their marginal distributions and a correlation matrix we can recover the entire reach and frequency distribution of a multivariate dataset using the appropriate bounds of the multivariate normal cumulative distribution. This approach is an elegant and stable alternative to creating a simulated dataset.  
+
 In the context of cross media measurement, it can be used to estimate the cross media reach using the industry standard measurement for each media (i.e. the media currencies), and a correlation matrix from a separate single-source study.   
 

@@ -474,15 +474,23 @@ window.Quarto = {
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">dplyr.summarise.inform =</span> <span class="cn">FALSE</span>) <span class="co"># to suppress annoying grouping warning</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>In a previous <a href="https://christelswift.github.io/cs_blog/posts/cross_media_with_copulas/">post</a>, I showed how we can use some marginal distributions (e.g.&nbsp;separate media measurements) and link them with a correlation matrix to derive an estimate of combined reach using a Gaussian copula. This was done by creating a simulation of 100k data points from the Gaussian copula and by mapping the resulting Normal margins to the observed margins using their quantiles. Then we can simply analyse results based on that simulated dataset and get cross media reach for any time spent threshold, as well as the solus reach from each media.</p>
-<p>In this post I will show how we can also do this without simulating a dataset, just by using the multivariate Normal cumulative distribution.</p>
+<p>In this post I will show how we can also do this without simulating a dataset, just by using the multivariate Normal cumulative distribution. As it doesn’t have a closed form solution, we will use the convenient <code>pmvnorm</code> function from the <code>mvtnorm</code> package to estimate the probability <span class="math inline">\(P(X_1 \in [l_1, u_1], ... , X_n \in [l_n, u_n])\)</span>. This function implements the methodology described in <span class="citation" data-cites="genz">(<a href="#ref-genz" role="doc-biblioref">Genz 1992</a>)</span>.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="cumulative_normal_plot.png" class="img-fluid figure-img"></p>
+<figcaption>Bivariate Normal Cumulative Distribution</figcaption>
+</figure>
+</div>
 <p>First I will show how to use the quantile distribution in the univariate case, then the bivariate case using a simulated dataset, and finally using the Bacon and Eggs dataset.</p>
 <section id="simulated-univariate-example" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> simulated univariate example</h1>
-<p>In this <a href="https://christelswift.github.io/cs_blog/posts/cross_media_with_copulas/">post</a>, we turned a continuous simulation into discrete values. To get the probability that our multivariate distribution is in a specific region, for example <span class="math inline">\(P(X_1 = 0, ... , X_n = 0)\)</span>, we used the results from the simulated dataset, but this can also be done using the quantiles of the cumulative continuous distribution.</p>
-<p>To work through a simple example and show how to correctly set the bounds of the region, we can start by looking at an univariate case. We start with a random sample from a Poisson distribution, derive their observed cumulative distribution, create a simple univariate normal simulation and transform it by mapping its continuous values to the observed quantiles in exactly the same way as before.</p>
-<p>Note that when we simulate a cross-media dataset from currencies we will not have an observed full dataset, just some margins and an empirical correlation matrix from a separate study. The steps described below with the univariate case will seem overly complicated but their only purpose is to illustrate how to correctly set the bounds of the cumulative distribution. When we move to the multivariate case, this will help to understand how to correctly define the marginal regions of the cumulative multivariate normal distribution.</p>
-<p>As the cumulative multivariate normal distribution does not have a closed form solution, we will use the convenient <code>pmvnorm</code> function from the <code>mvtnorm</code> package to estimate the probability <span class="math inline">\(P(X_1 \in [l_1, u_1], ... , X_n \in [l_n, u_n])\)</span>. This function implements the methodology described in <span class="citation" data-cites="genz">(<a href="#ref-genz" role="doc-biblioref">Genz 1992</a>)</span>.</p>
-<p>First, we create a simulated dataset using a Poisson with parameter <span class="math inline">\(\lambda = 2\)</span>:</p>
+<p>In this previous <a href="https://christelswift.github.io/cs_blog/posts/cross_media_with_copulas/">post</a>, we turned a multivariate continuous simulation into discrete values. To get the probability that our multivariate distribution is in a specific region, for example <span class="math inline">\(P(X_1 = 0, ... , X_n = 0)\)</span>, we then used the results from the simulated transformed dataset, but this can also be done using the quantiles of the cumulative continuous distribution.</p>
+<p>In this section we will take the simple example of one variable to demonstrate how we map the values from a random sample from <span class="math inline">\(N(0,1)\)</span> onto any observed discrete distribution. Then we will show how to correctly set the bounds of a region of interest with discrete values.</p>
+<p>Let’s start with a random sample from a Poisson distribution. We will: - derive their observed cumulative distribution,<br>
+- create a simple univariate normal simulation and<br>
+- transform it by mapping its continuous values to the observed quantiles in exactly the same way as before.</p>
+<p>Note that when we simulate a cross-media dataset from currencies we will not have an observed full dataset, just some observed margins from separate datasets and an empirical correlation matrix from a separate study. The steps described below with the univariate case will seem overly complicated but their only purpose is to illustrate how to correctly set the bounds of the cumulative distribution. When we move to the multivariate case, this will help to understand how to correctly define the marginal regions of the cumulative multivariate normal distribution.</p>
+<p>First, we create a simulated dataset using a Poisson with parameter <span class="math inline">\(\lambda = 2\)</span>, this will be our “observed” dataset:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">4</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>sample_size <span class="ot">&lt;-</span> <span class="dv">10000</span></span>
@@ -552,7 +560,7 @@ window.Quarto = {
 </div>
 </div>
 </div>
-<p>Each bar on the cumulative distribution shows the observed probability that our variable is below a specified value, for example <span class="math inline">\(F(X=1) = P(X \leq 1) = P(X=0) + P(X=1)\)</span></p>
+<p>Each bar on the cumulative distribution on the right shows the observed probability that our variable is below a specified value, for example <span class="math inline">\(F(X=1) = P(X \leq 1) = P(X=0) + P(X=1)\)</span></p>
 <p>Now, as we would do in the multivariate case where we recreate a simulated dataset using just the margins and a correlation matrix, here in the univariate case we start by creating a simulation from a <span class="math inline">\(N(0,1)\)</span>:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>simdata <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">value =</span> <span class="fu">rnorm</span>(<span class="at">n =</span> sample_size))</span>
@@ -624,7 +632,7 @@ Given an observed cumulative distribution <span class="math inline">\(F(X)\)</sp
 </div>
 </div>
 </div>
-<p>For example we see that on the right hand side, the first value corresponding to <span class="math inline">\(P(X = 0)\)</span> is <span class="math inline">\(p = F(X) = 0.1367\)</span>, i.e.&nbsp;13.67% of the observed dataset has the value 0.. This is our first critical value: in our simulated dataset on the left, we have to find the value of <span class="math inline">\(z\)</span> such that <span class="math inline">\(p = \Phi(Z)) = 0.1367\)</span>. To do this we use the <strong>quantile function</strong> which is the inverse of the cumulative distribution function, i.e.&nbsp;for a given cumulative percentage on the y axis, the quantile function gives the corresponding value on the x axis.</p>
+<p>For example we see that on the left hand side, the first value corresponding to <span class="math inline">\(P(X = 0)\)</span> is <span class="math inline">\(p = F(X) = 0.1367\)</span>, i.e.&nbsp;13.67% of the observed dataset has the value 0. This is our first critical value: in our simulated dataset on the right, we have to find the value of <span class="math inline">\(z\)</span> such that <span class="math inline">\(p = \Phi(Z)) = 0.1367\)</span>. To do this we use the <strong>quantile function</strong> which is the inverse of the cumulative distribution function, i.e.&nbsp;for a given cumulative percentage on the y axis, the quantile function gives the corresponding value on the x axis.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">quantile</span>(simdata<span class="sc">$</span>value, <span class="at">probs =</span> <span class="fl">0.1367</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -653,6 +661,7 @@ In our simulated dataset, we have to find the value of <span class="math inline"
  3.0142916  4.0495128 </code></pre>
 </div>
 </div>
+<p>(Note that we use the <code>quantile</code> function rather than <code>pnorm</code> because we are working with a dataset rather than the underlying distribution.)</p>
 <p>Now we map the cumulative distributions of this simulated <span class="math inline">\(N(0,1)\)</span> to the observed cumulative distributions:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># make copy so we can replace each column with their corrected values:</span></span>
@@ -746,7 +755,7 @@ source), : Ignoring unknown aesthetics: fill</code></pre>
 </div>
 </div>
 <p>=&gt; as expected the observed and simulated frequencies are a perfect match.</p>
-<p>Now say we want to calculate the probability that <span class="math inline">\(X \in [1,2]\)</span>, using the underlying Normal distribution rather than the simulated dataset:</p>
+<p>Now say we want to calculate the probability that <span class="math inline">\(X \in [1,2]\)</span>:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>actual_distr <span class="sc">%&gt;%</span> </span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">lead_value =</span> <span class="fu">lead</span>(value)) <span class="sc">%&gt;%</span> </span>
@@ -762,8 +771,8 @@ source), : Ignoring unknown aesthetics: fill</code></pre>
 6     5          6 0.0349 0.9847</code></pre>
 </div>
 </div>
-<p>Looking at the observed cumulative distribution <span class="math inline">\(F(X)\)</span>, this would be the area corresponding to <span class="math inline">\(Y \leq 0.676\)</span> minus <span class="math inline">\(Y \leq 0.137\)</span>:</p>
-<p><span class="math display">\[P(X \in [1,2]) = P(X\leq 2) - P(X=0) = F(X=2) - F(X=0)\]</span></p>
+<p>Looking at the observed cumulative distribution <span class="math inline">\(F(X)\)</span>, this would be the area corresponding to <span class="math inline">\(\text{cumpc} \leq 0.676\)</span> minus <span class="math inline">\(\text{cumpc} \leq 0.137\)</span>:</p>
+<p><span class="math display">\[P(X \in [1,2]) = P(X\leq 2) - P(X=0) = F(X=2) - F(X=0)\]</span> Let’s write the thresholds for <span class="math inline">\(X\)</span>:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"x"</span>,</span>
@@ -811,11 +820,11 @@ source), : Ignoring unknown aesthetics: fill</code></pre>
 1 x               1           2       0.137       0.676</code></pre>
 </div>
 </div>
-<p>In the univariate case, the answer is simply the difference between upper_cumpc and lower_cumpc, ie <span class="math inline">\(P(X \in [1,2] = 53.9\%\)</span>. When we move to the multivariate case this step will give us the required lower and upper bounds of the cumulative distribution of each observed discrete margin, and it will then make use of the correlation to estimate the corresponding cumulative multivariate distribution.</p>
+<p>In the univariate case, the answer is simply the difference between upper_cumpc and lower_cumpc, ie <span class="math inline">\(P(X \in [1,2]) = 53.9\%\)</span>. When we move to the multivariate case this step will give us the required lower and upper bounds of the cumulative distribution of each observed discrete margin, and it will then make use of the correlation to estimate the corresponding cumulative multivariate distribution.</p>
 </section>
 <section id="simulated-multivariate-example" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> simulated multivariate example</h1>
-<p>Now we create a bivariate discrete dataset with a specified correlation. We start by creating a bivariate Normal with the given correlation, then we arbitrarily map the margins to discrete values:</p>
+<p>To illustrate the multivariate case, we create a bivariate discrete dataset with a specified correlation. We start by creating a bivariate Normal with the given correlation, then we arbitrarily map the margins to discrete values:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">13</span>)</span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>my_corr <span class="ot">&lt;-</span> <span class="fl">0.8</span></span>
@@ -869,9 +878,10 @@ source), : Ignoring unknown aesthetics: fill</code></pre>
 <span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">cumpc =</span> <span class="fu">cumsum</span>(pc))</span>
 <span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a><span class="co"># check we add back to 1 by looking at the cumulative distribution at the maximum x value:  </span></span>
-<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>margins <span class="sc">%&gt;%</span> </span>
-<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(value <span class="sc">==</span> <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a><span class="co"># check we add back to 1 by looking at </span></span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a><span class="co"># the cumulative distribution at the maximum x value:  </span></span>
+<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>margins <span class="sc">%&gt;%</span> </span>
+<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(value <span class="sc">==</span> <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  name value   pc cumpc
 1   x1     5 0.05     1
@@ -964,9 +974,12 @@ x2 0.7359814 1.0000000</code></pre>
 <span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat=</span><span class="st">"identity"</span>, <span class="at">fill=</span><span class="st">"slateblue"</span>) <span class="sc">+</span></span>
 <span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">8</span>) <span class="sc">+</span></span>
 <span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
-<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="at">vjust =</span> <span class="sc">-</span><span class="fl">0.2</span>, <span class="at">size=</span><span class="dv">3</span>, <span class="fu">aes</span>(<span class="at">label=</span>scales<span class="sc">::</span><span class="fu">percent</span>(pc, <span class="at">accuracy =</span> <span class="dv">1</span>))) <span class="sc">+</span></span>
-<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>name) <span class="sc">+</span></span>
-<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"bivariate discrete: marginal observed frequencies"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(</span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">label=</span>scales<span class="sc">::</span><span class="fu">percent</span>(pc, <span class="at">accuracy =</span> <span class="dv">1</span>)),</span>
+<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">vjust =</span> <span class="sc">-</span><span class="fl">0.2</span>, <span class="at">size=</span><span class="dv">3</span></span>
+<span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>name) <span class="sc">+</span></span>
+<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"bivariate discrete: marginal observed frequencies"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -1119,7 +1132,7 @@ x2 0.7359814 1.0000000</code></pre>
 1 0.1968</code></pre>
 </div>
 </div>
-<p>or we can use the multivariate equivalent of <code>pnorm</code>, i.e.&nbsp;<code>mvtnorm::pmvnorm</code> which needs as arguments the lower and upper limits of the margins of the multivariate cumulative distribution.</p>
+<p>or we can use the multivariate equivalent of <code>pnorm</code>, i.e.&nbsp;<code>mvtnorm::pmvnorm</code> which needs as arguments the lower and upper limits of the region of interest on the margins of the multivariate cumulative distribution.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
 <span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="fu">c</span>(<span class="st">"x1"</span>, <span class="st">"x2"</span>),</span>
@@ -1303,7 +1316,7 @@ x2 0.7359814 1.0000000</code></pre>
 </div>
 </div>
 <p>For <span class="math inline">\(X_1\)</span> we want to find the cumulative % in the observed distribution such that we are in the region where <span class="math inline">\(X_1 \in [1,3]\)</span>. These are the y values <span class="math inline">\((0.25, 0.80)\)</span> on the left hand side. We then have to find their corresponding quantiles on <span class="math inline">\(N(0,1)\)</span> using the <code>qnorm</code> function. These are <span class="math inline">\((-0.674, 0.842)\)</span> (see the x values on the plot on the right), and they define the quantile region of the first margin in our cumulative multivariate normal.</p>
-<p>Doing the same exercise with <span class="math inline">\(X_2\)</span> gives the values <span class="math inline">\((0.279, 1.55)\)</span> and we can plug them in <code>mvtnorm::pmvnorm</code> along with our observed Spearman correlation:</p>
+<p>Doing the same exercise with <span class="math inline">\(X_2\)</span> gives the quantile values <span class="math inline">\((0.279, 1.55)\)</span> on <span class="math inline">\(N(0,1)\)</span> and we can plug them in <code>mvtnorm::pmvnorm</code> along with our observed Spearman correlation:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>region_prob <span class="ot">&lt;-</span> <span class="fu">pmvnorm</span>(</span>
 <span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>      <span class="at">lower =</span> quantile_bounds<span class="sc">$</span>lower_phi_quantile,</span>
@@ -1317,7 +1330,7 @@ x2 0.7359814 1.0000000</code></pre>
 <pre><code>[1] 0.1969595</code></pre>
 </div>
 </div>
-<p>=&gt; very close to the result found with the simulated dataset.</p>
+<p>This is the same result we found with the simulated dataset: <span class="math inline">\(P(X_1 \in [2,3], X_2 \in [2,3]) = 19.7\%\)</span></p>
 <p>Let’s put this into a function and compare actual, simulated and pmvnorm results for all possible pairs of values:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>deduplicated_reach_fc <span class="ot">&lt;-</span> <span class="cf">function</span>(thresholds, actual_distr, sigma){</span>
@@ -1718,29 +1731,17 @@ bacon 1.0000000 0.3228499
 eggs  0.3228499 1.0000000</code></pre>
 </div>
 </div>
-<p>Rather than running a simulation, we can use the cumulative distribution of the multivariate normal. It has no closed-form solution but we can use <code>mvtnorm:pmvtnorm</code>.</p>
-<p>The cross product reach is:</p>
-<p><span class="math inline">\(P(X_1 &gt; 0 \cup X_2 &gt; 0) = 1 - P(X_1 = 0 \cap X_2 = 0)\)</span></p>
-<p>So the actual value is:</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb82"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb82-1"><a href="#cb82-1" aria-hidden="true" tabindex="-1"></a>db <span class="sc">%&gt;%</span> </span>
-<span id="cb82-2"><a href="#cb82-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">cross_reach =</span> <span class="fu">sum</span>( (bacon <span class="sc">+</span> eggs) <span class="sc">&gt;</span> <span class="dv">0</span> ) <span class="sc">/</span> <span class="fu">nrow</span>(db)) <span class="sc">%&gt;%</span> </span>
-<span id="cb82-3"><a href="#cb82-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">source =</span> <span class="st">"actual"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>  cross_reach source
-1   0.5364964 actual</code></pre>
-</div>
-</div>
+<p>Rather than running a simulation, we can use the cumulative distribution of the multivariate normal to recover the multivariate distribution.</p>
 <p>Say we want to find the probability that eggs and bacon are between 1 and 2 units:</p>
 <p><span class="math inline">\(P( 1 \leq X_1 \leq 2, 1 \leq X_2 \leq 2)\)</span>:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb84"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb84-1"><a href="#cb84-1" aria-hidden="true" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb84-2"><a href="#cb84-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="fu">c</span>(<span class="st">"eggs"</span>, <span class="st">"bacon"</span>), </span>
-<span id="cb84-3"><a href="#cb84-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower_value =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>), </span>
-<span id="cb84-4"><a href="#cb84-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper_value =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>)</span>
-<span id="cb84-5"><a href="#cb84-5" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb84-6"><a href="#cb84-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb84-7"><a href="#cb84-7" aria-hidden="true" tabindex="-1"></a>thresholds</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb82"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb82-1"><a href="#cb82-1" aria-hidden="true" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb82-2"><a href="#cb82-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="fu">c</span>(<span class="st">"eggs"</span>, <span class="st">"bacon"</span>), </span>
+<span id="cb82-3"><a href="#cb82-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower_value =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>), </span>
+<span id="cb82-4"><a href="#cb82-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper_value =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>)</span>
+<span id="cb82-5"><a href="#cb82-5" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb82-6"><a href="#cb82-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb82-7"><a href="#cb82-7" aria-hidden="true" tabindex="-1"></a>thresholds</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   name lower_value upper_value
 1  eggs           1           2
@@ -1749,14 +1750,14 @@ eggs  0.3228499 1.0000000</code></pre>
 </div>
 <p>As the observed distribution is discrete, we have to take the lead value as the lower bound:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb86"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb86-1"><a href="#cb86-1" aria-hidden="true" tabindex="-1"></a>actual_distr <span class="sc">%&gt;%</span> </span>
-<span id="cb86-2"><a href="#cb86-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">lead_value =</span> <span class="fu">lead</span>(value)) <span class="sc">%&gt;%</span> </span>
-<span id="cb86-3"><a href="#cb86-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
-<span id="cb86-4"><a href="#cb86-4" aria-hidden="true" tabindex="-1"></a>    name <span class="sc">==</span> <span class="st">"eggs"</span>, </span>
-<span id="cb86-5"><a href="#cb86-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># we need the x value before the x value corresponding to the lower_value:</span></span>
-<span id="cb86-6"><a href="#cb86-6" aria-hidden="true" tabindex="-1"></a>    lead_value <span class="sc">&gt;=</span> <span class="dv">1</span>,</span>
-<span id="cb86-7"><a href="#cb86-7" aria-hidden="true" tabindex="-1"></a>    value <span class="sc">&lt;=</span> <span class="dv">2</span></span>
-<span id="cb86-8"><a href="#cb86-8" aria-hidden="true" tabindex="-1"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb84"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb84-1"><a href="#cb84-1" aria-hidden="true" tabindex="-1"></a>actual_distr <span class="sc">%&gt;%</span> </span>
+<span id="cb84-2"><a href="#cb84-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">lead_value =</span> <span class="fu">lead</span>(value)) <span class="sc">%&gt;%</span> </span>
+<span id="cb84-3"><a href="#cb84-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
+<span id="cb84-4"><a href="#cb84-4" aria-hidden="true" tabindex="-1"></a>    name <span class="sc">==</span> <span class="st">"eggs"</span>, </span>
+<span id="cb84-5"><a href="#cb84-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># we need the x value before the x value corresponding to the lower_value:</span></span>
+<span id="cb84-6"><a href="#cb84-6" aria-hidden="true" tabindex="-1"></a>    lead_value <span class="sc">&gt;=</span> <span class="dv">1</span>,</span>
+<span id="cb84-7"><a href="#cb84-7" aria-hidden="true" tabindex="-1"></a>    value <span class="sc">&lt;=</span> <span class="dv">2</span></span>
+<span id="cb84-8"><a href="#cb84-8" aria-hidden="true" tabindex="-1"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 3 × 6
 # Groups:   name [1]
@@ -1770,36 +1771,36 @@ eggs  0.3228499 1.0000000</code></pre>
 <p>=&gt; for eggs, we’ll need to look at the region of the cumulative distribution between [0.542, 0.942].</p>
 <p>Find the corresponding empirical quantiles for these lower and upper values:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb88"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb88-1"><a href="#cb88-1" aria-hidden="true" tabindex="-1"></a>quantile_bounds <span class="ot">&lt;-</span> actual_distr <span class="sc">%&gt;%</span> </span>
-<span id="cb88-2"><a href="#cb88-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(name) <span class="sc">%&gt;%</span> </span>
-<span id="cb88-3"><a href="#cb88-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb88-4"><a href="#cb88-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">max_value =</span> <span class="fu">max</span>(value),</span>
-<span id="cb88-5"><a href="#cb88-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">lead_value =</span> <span class="fu">lead</span>(value)</span>
-<span id="cb88-6"><a href="#cb88-6" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb88-7"><a href="#cb88-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">inner_join</span>(</span>
-<span id="cb88-8"><a href="#cb88-8" aria-hidden="true" tabindex="-1"></a>      thresholds,</span>
-<span id="cb88-9"><a href="#cb88-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">by =</span> <span class="st">"name"</span></span>
-<span id="cb88-10"><a href="#cb88-10" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span> </span>
-<span id="cb88-11"><a href="#cb88-11" aria-hidden="true" tabindex="-1"></a>   <span class="fu">filter</span>(</span>
-<span id="cb88-12"><a href="#cb88-12" aria-hidden="true" tabindex="-1"></a>        <span class="co"># we need the x value before the x value corresponding to the lower_value:</span></span>
-<span id="cb88-13"><a href="#cb88-13" aria-hidden="true" tabindex="-1"></a>        lead_value <span class="sc">&gt;=</span> lower_value,</span>
-<span id="cb88-14"><a href="#cb88-14" aria-hidden="true" tabindex="-1"></a>        value <span class="sc">&lt;=</span> upper_value</span>
-<span id="cb88-15"><a href="#cb88-15" aria-hidden="true" tabindex="-1"></a>        ) <span class="sc">%&gt;%</span> </span>
-<span id="cb88-16"><a href="#cb88-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(name, lower_value, upper_value, max_value) <span class="sc">%&gt;%</span> </span>
-<span id="cb88-17"><a href="#cb88-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb88-18"><a href="#cb88-18" aria-hidden="true" tabindex="-1"></a>        <span class="at">lower_cumpc =</span> <span class="fu">min</span>(cumpc),</span>
-<span id="cb88-19"><a href="#cb88-19" aria-hidden="true" tabindex="-1"></a>        <span class="at">upper_cumpc =</span> <span class="fu">max</span>(cumpc)</span>
-<span id="cb88-20"><a href="#cb88-20" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span> </span>
-<span id="cb88-21"><a href="#cb88-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb88-22"><a href="#cb88-22" aria-hidden="true" tabindex="-1"></a>        <span class="at">lower_cumpc =</span> <span class="fu">ifelse</span>(lower_value <span class="sc">&lt;=</span> <span class="dv">0</span>, <span class="dv">0</span>, lower_cumpc),</span>
-<span id="cb88-23"><a href="#cb88-23" aria-hidden="true" tabindex="-1"></a>        <span class="at">upper_cumpc =</span> <span class="fu">ifelse</span>(upper_value <span class="sc">&gt;=</span> max_value, <span class="dv">1</span>, upper_cumpc)</span>
-<span id="cb88-24"><a href="#cb88-24" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span> </span>
-<span id="cb88-25"><a href="#cb88-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb88-26"><a href="#cb88-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">lower_phi_quantile =</span> <span class="fu">qnorm</span>(lower_cumpc), </span>
-<span id="cb88-27"><a href="#cb88-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">upper_phi_quantile =</span> <span class="fu">qnorm</span>(upper_cumpc) </span>
-<span id="cb88-28"><a href="#cb88-28" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb88-29"><a href="#cb88-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb88-30"><a href="#cb88-30" aria-hidden="true" tabindex="-1"></a>quantile_bounds</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb86"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb86-1"><a href="#cb86-1" aria-hidden="true" tabindex="-1"></a>quantile_bounds <span class="ot">&lt;-</span> actual_distr <span class="sc">%&gt;%</span> </span>
+<span id="cb86-2"><a href="#cb86-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(name) <span class="sc">%&gt;%</span> </span>
+<span id="cb86-3"><a href="#cb86-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb86-4"><a href="#cb86-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">max_value =</span> <span class="fu">max</span>(value),</span>
+<span id="cb86-5"><a href="#cb86-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">lead_value =</span> <span class="fu">lead</span>(value)</span>
+<span id="cb86-6"><a href="#cb86-6" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb86-7"><a href="#cb86-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">inner_join</span>(</span>
+<span id="cb86-8"><a href="#cb86-8" aria-hidden="true" tabindex="-1"></a>      thresholds,</span>
+<span id="cb86-9"><a href="#cb86-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">by =</span> <span class="st">"name"</span></span>
+<span id="cb86-10"><a href="#cb86-10" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span> </span>
+<span id="cb86-11"><a href="#cb86-11" aria-hidden="true" tabindex="-1"></a>   <span class="fu">filter</span>(</span>
+<span id="cb86-12"><a href="#cb86-12" aria-hidden="true" tabindex="-1"></a>        <span class="co"># we need the x value before the x value corresponding to the lower_value:</span></span>
+<span id="cb86-13"><a href="#cb86-13" aria-hidden="true" tabindex="-1"></a>        lead_value <span class="sc">&gt;=</span> lower_value,</span>
+<span id="cb86-14"><a href="#cb86-14" aria-hidden="true" tabindex="-1"></a>        value <span class="sc">&lt;=</span> upper_value</span>
+<span id="cb86-15"><a href="#cb86-15" aria-hidden="true" tabindex="-1"></a>        ) <span class="sc">%&gt;%</span> </span>
+<span id="cb86-16"><a href="#cb86-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(name, lower_value, upper_value, max_value) <span class="sc">%&gt;%</span> </span>
+<span id="cb86-17"><a href="#cb86-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb86-18"><a href="#cb86-18" aria-hidden="true" tabindex="-1"></a>        <span class="at">lower_cumpc =</span> <span class="fu">min</span>(cumpc),</span>
+<span id="cb86-19"><a href="#cb86-19" aria-hidden="true" tabindex="-1"></a>        <span class="at">upper_cumpc =</span> <span class="fu">max</span>(cumpc)</span>
+<span id="cb86-20"><a href="#cb86-20" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span> </span>
+<span id="cb86-21"><a href="#cb86-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb86-22"><a href="#cb86-22" aria-hidden="true" tabindex="-1"></a>        <span class="at">lower_cumpc =</span> <span class="fu">ifelse</span>(lower_value <span class="sc">&lt;=</span> <span class="dv">0</span>, <span class="dv">0</span>, lower_cumpc),</span>
+<span id="cb86-23"><a href="#cb86-23" aria-hidden="true" tabindex="-1"></a>        <span class="at">upper_cumpc =</span> <span class="fu">ifelse</span>(upper_value <span class="sc">&gt;=</span> max_value, <span class="dv">1</span>, upper_cumpc)</span>
+<span id="cb86-24"><a href="#cb86-24" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span> </span>
+<span id="cb86-25"><a href="#cb86-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb86-26"><a href="#cb86-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">lower_phi_quantile =</span> <span class="fu">qnorm</span>(lower_cumpc), </span>
+<span id="cb86-27"><a href="#cb86-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">upper_phi_quantile =</span> <span class="fu">qnorm</span>(upper_cumpc) </span>
+<span id="cb86-28"><a href="#cb86-28" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb86-29"><a href="#cb86-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb86-30"><a href="#cb86-30" aria-hidden="true" tabindex="-1"></a>quantile_bounds</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 2 × 8
 # Groups:   name, lower_value, upper_value [2]
@@ -1812,34 +1813,34 @@ eggs  0.3228499 1.0000000</code></pre>
 </div>
 <p>Then using <code>mvtnorm:pmvnorm</code> we can get the probability corresponding to the relevant region:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb90"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb90-1"><a href="#cb90-1" aria-hidden="true" tabindex="-1"></a>region_prob <span class="ot">&lt;-</span> <span class="fu">pmvnorm</span>(</span>
-<span id="cb90-2"><a href="#cb90-2" aria-hidden="true" tabindex="-1"></a>      <span class="at">lower =</span> quantile_bounds<span class="sc">$</span>lower_phi_quantile,</span>
-<span id="cb90-3"><a href="#cb90-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">upper =</span> quantile_bounds<span class="sc">$</span>upper_phi_quantile,</span>
-<span id="cb90-4"><a href="#cb90-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">mean =</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">length</span>(products)),</span>
-<span id="cb90-5"><a href="#cb90-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">corr =</span> tcc_corr</span>
-<span id="cb90-6"><a href="#cb90-6" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb90-7"><a href="#cb90-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb90-8"><a href="#cb90-8" aria-hidden="true" tabindex="-1"></a>region_prob[<span class="dv">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb88"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb88-1"><a href="#cb88-1" aria-hidden="true" tabindex="-1"></a>region_prob <span class="ot">&lt;-</span> <span class="fu">pmvnorm</span>(</span>
+<span id="cb88-2"><a href="#cb88-2" aria-hidden="true" tabindex="-1"></a>      <span class="at">lower =</span> quantile_bounds<span class="sc">$</span>lower_phi_quantile,</span>
+<span id="cb88-3"><a href="#cb88-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">upper =</span> quantile_bounds<span class="sc">$</span>upper_phi_quantile,</span>
+<span id="cb88-4"><a href="#cb88-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">mean =</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">length</span>(products)),</span>
+<span id="cb88-5"><a href="#cb88-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">corr =</span> tcc_corr</span>
+<span id="cb88-6"><a href="#cb88-6" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb88-7"><a href="#cb88-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb88-8"><a href="#cb88-8" aria-hidden="true" tabindex="-1"></a>region_prob[<span class="dv">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 0.1020068</code></pre>
 </div>
 </div>
 <p>Compare with actual:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb92"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb92-1"><a href="#cb92-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(</span>
-<span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a>  db <span class="sc">%&gt;%</span> </span>
-<span id="cb92-3"><a href="#cb92-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(</span>
-<span id="cb92-4"><a href="#cb92-4" aria-hidden="true" tabindex="-1"></a>      bacon <span class="sc">&gt;=</span> <span class="dv">1</span>, bacon <span class="sc">&lt;=</span> <span class="dv">2</span>, </span>
-<span id="cb92-5"><a href="#cb92-5" aria-hidden="true" tabindex="-1"></a>      eggs <span class="sc">&gt;=</span> <span class="dv">1</span>, eggs <span class="sc">&lt;=</span> <span class="dv">2</span></span>
-<span id="cb92-6"><a href="#cb92-6" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span> </span>
-<span id="cb92-7"><a href="#cb92-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">reach_pc =</span> <span class="fu">n</span>() <span class="sc">/</span> <span class="fu">nrow</span>(db)) <span class="sc">%&gt;%</span> </span>
-<span id="cb92-8"><a href="#cb92-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">source =</span> <span class="st">"actual"</span>),</span>
-<span id="cb92-9"><a href="#cb92-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb92-10"><a href="#cb92-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
-<span id="cb92-11"><a href="#cb92-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">reach_pc =</span> region_prob[<span class="dv">1</span>],</span>
-<span id="cb92-12"><a href="#cb92-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">source =</span> <span class="st">"pmvnorm"</span></span>
-<span id="cb92-13"><a href="#cb92-13" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb92-14"><a href="#cb92-14" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb90"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb90-1"><a href="#cb90-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(</span>
+<span id="cb90-2"><a href="#cb90-2" aria-hidden="true" tabindex="-1"></a>  db <span class="sc">%&gt;%</span> </span>
+<span id="cb90-3"><a href="#cb90-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(</span>
+<span id="cb90-4"><a href="#cb90-4" aria-hidden="true" tabindex="-1"></a>      bacon <span class="sc">&gt;=</span> <span class="dv">1</span>, bacon <span class="sc">&lt;=</span> <span class="dv">2</span>, </span>
+<span id="cb90-5"><a href="#cb90-5" aria-hidden="true" tabindex="-1"></a>      eggs <span class="sc">&gt;=</span> <span class="dv">1</span>, eggs <span class="sc">&lt;=</span> <span class="dv">2</span></span>
+<span id="cb90-6"><a href="#cb90-6" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span> </span>
+<span id="cb90-7"><a href="#cb90-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">reach_pc =</span> <span class="fu">n</span>() <span class="sc">/</span> <span class="fu">nrow</span>(db)) <span class="sc">%&gt;%</span> </span>
+<span id="cb90-8"><a href="#cb90-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">source =</span> <span class="st">"actual"</span>),</span>
+<span id="cb90-9"><a href="#cb90-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb90-10"><a href="#cb90-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb90-11"><a href="#cb90-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">reach_pc =</span> region_prob[<span class="dv">1</span>],</span>
+<span id="cb90-12"><a href="#cb90-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">source =</span> <span class="st">"pmvnorm"</span></span>
+<span id="cb90-13"><a href="#cb90-13" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb90-14"><a href="#cb90-14" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   reach_pc  source
 1 0.1021898  actual
@@ -1849,38 +1850,38 @@ eggs  0.3228499 1.0000000</code></pre>
 <p>=&gt; <code>pmvnorm</code> matches the actual value for <span class="math inline">\(P( 1 \leq X_1 \leq 2, 1 \leq X_2 \leq 2)\)</span>.</p>
 <p>We can also get this result using the <code>deduplicated_reach_fc</code> function defined in section 2:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb94"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb94-1"><a href="#cb94-1" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">deduplicated_reach_fc</span>(thresholds, actual_distr, <span class="at">sigma =</span> tcc_corr)</span>
-<span id="cb94-2"><a href="#cb94-2" aria-hidden="true" tabindex="-1"></a>result</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb92"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb92-1"><a href="#cb92-1" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">deduplicated_reach_fc</span>(thresholds, actual_distr, <span class="at">sigma =</span> tcc_corr)</span>
+<span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a>result</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 0.1020068</code></pre>
 </div>
 </div>
 <p>To get the combined null reach <span class="math inline">\(p_{00} = P(X_1 =0, X_2 = 0)\)</span>:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb96"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb96-1"><a href="#cb96-1" aria-hidden="true" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb96-2"><a href="#cb96-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="fu">c</span>(<span class="st">"eggs"</span>, <span class="st">"bacon"</span>), </span>
-<span id="cb96-3"><a href="#cb96-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower_value =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, <span class="sc">-</span><span class="cn">Inf</span>), </span>
-<span id="cb96-4"><a href="#cb96-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper_value =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>)</span>
-<span id="cb96-5"><a href="#cb96-5" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb96-6"><a href="#cb96-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb96-7"><a href="#cb96-7" aria-hidden="true" tabindex="-1"></a>p_00 <span class="ot">&lt;-</span> <span class="fu">deduplicated_reach_fc</span>(thresholds, actual_distr, tcc_corr)</span>
-<span id="cb96-8"><a href="#cb96-8" aria-hidden="true" tabindex="-1"></a>p_00</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb94"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb94-1"><a href="#cb94-1" aria-hidden="true" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb94-2"><a href="#cb94-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="fu">c</span>(<span class="st">"eggs"</span>, <span class="st">"bacon"</span>), </span>
+<span id="cb94-3"><a href="#cb94-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower_value =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, <span class="sc">-</span><span class="cn">Inf</span>), </span>
+<span id="cb94-4"><a href="#cb94-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper_value =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>)</span>
+<span id="cb94-5"><a href="#cb94-5" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb94-6"><a href="#cb94-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb94-7"><a href="#cb94-7" aria-hidden="true" tabindex="-1"></a>p_00 <span class="ot">&lt;-</span> <span class="fu">deduplicated_reach_fc</span>(thresholds, actual_distr, tcc_corr)</span>
+<span id="cb94-8"><a href="#cb94-8" aria-hidden="true" tabindex="-1"></a>p_00</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 0.4635024</code></pre>
 </div>
 </div>
 <p>and then the combined reach is <span class="math inline">\(1-p_{00}\)</span>:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb98"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(</span>
-<span id="cb98-2"><a href="#cb98-2" aria-hidden="true" tabindex="-1"></a>  db <span class="sc">%&gt;%</span> </span>
-<span id="cb98-3"><a href="#cb98-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">cross_reach_pc =</span> <span class="fu">sum</span>( (bacon <span class="sc">+</span> eggs) <span class="sc">&gt;</span> <span class="dv">0</span> ) <span class="sc">/</span> <span class="fu">nrow</span>(db)) <span class="sc">%&gt;%</span> </span>
-<span id="cb98-4"><a href="#cb98-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">source =</span> <span class="st">"actual"</span>),</span>
-<span id="cb98-5"><a href="#cb98-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb98-6"><a href="#cb98-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
-<span id="cb98-7"><a href="#cb98-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">cross_reach_pc =</span> <span class="dv">1</span> <span class="sc">-</span> p_00,</span>
-<span id="cb98-8"><a href="#cb98-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">source =</span> <span class="st">"pmvnorm"</span></span>
-<span id="cb98-9"><a href="#cb98-9" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb98-10"><a href="#cb98-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb96"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb96-1"><a href="#cb96-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(</span>
+<span id="cb96-2"><a href="#cb96-2" aria-hidden="true" tabindex="-1"></a>  db <span class="sc">%&gt;%</span> </span>
+<span id="cb96-3"><a href="#cb96-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">cross_reach_pc =</span> <span class="fu">sum</span>( (bacon <span class="sc">+</span> eggs) <span class="sc">&gt;</span> <span class="dv">0</span> ) <span class="sc">/</span> <span class="fu">nrow</span>(db)) <span class="sc">%&gt;%</span> </span>
+<span id="cb96-4"><a href="#cb96-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">source =</span> <span class="st">"actual"</span>),</span>
+<span id="cb96-5"><a href="#cb96-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb96-6"><a href="#cb96-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb96-7"><a href="#cb96-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">cross_reach_pc =</span> <span class="dv">1</span> <span class="sc">-</span> p_00,</span>
+<span id="cb96-8"><a href="#cb96-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">source =</span> <span class="st">"pmvnorm"</span></span>
+<span id="cb96-9"><a href="#cb96-9" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb96-10"><a href="#cb96-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  cross_reach_pc  source
 1      0.5364964  actual
@@ -1889,14 +1890,14 @@ eggs  0.3228499 1.0000000</code></pre>
 </div>
 <p>Now for all possible combinations:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb100"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb100-1"><a href="#cb100-1" aria-hidden="true" tabindex="-1"></a>actual_pairs_pc <span class="ot">&lt;-</span> db <span class="sc">%&gt;%</span> </span>
-<span id="cb100-2"><a href="#cb100-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(bacon, eggs) <span class="sc">%&gt;%</span> </span>
-<span id="cb100-3"><a href="#cb100-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb100-4"><a href="#cb100-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">pc =</span> n <span class="sc">/</span> <span class="fu">sum</span>(n),</span>
-<span id="cb100-5"><a href="#cb100-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">source =</span> <span class="st">"actual"</span></span>
-<span id="cb100-6"><a href="#cb100-6" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb100-7"><a href="#cb100-7" aria-hidden="true" tabindex="-1"></a>         </span>
-<span id="cb100-8"><a href="#cb100-8" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(actual_pairs_pc)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb98"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a>actual_pairs_pc <span class="ot">&lt;-</span> db <span class="sc">%&gt;%</span> </span>
+<span id="cb98-2"><a href="#cb98-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(bacon, eggs) <span class="sc">%&gt;%</span> </span>
+<span id="cb98-3"><a href="#cb98-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb98-4"><a href="#cb98-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">pc =</span> n <span class="sc">/</span> <span class="fu">sum</span>(n),</span>
+<span id="cb98-5"><a href="#cb98-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">source =</span> <span class="st">"actual"</span></span>
+<span id="cb98-6"><a href="#cb98-6" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb98-7"><a href="#cb98-7" aria-hidden="true" tabindex="-1"></a>         </span>
+<span id="cb98-8"><a href="#cb98-8" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(actual_pairs_pc)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  bacon eggs   n         pc source
 1     0    0 254 0.46350365 actual
@@ -1909,34 +1910,34 @@ eggs  0.3228499 1.0000000</code></pre>
 </div>
 <p>Same using <code>pmvnorm</code>:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb102"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb102-1"><a href="#cb102-1" aria-hidden="true" tabindex="-1"></a>my_list <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
-<span id="cb102-2"><a href="#cb102-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb102-3"><a href="#cb102-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(actual_pairs_pc)){</span>
-<span id="cb102-4"><a href="#cb102-4" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb102-5"><a href="#cb102-5" aria-hidden="true" tabindex="-1"></a>  thresholds <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb102-6"><a href="#cb102-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="fu">c</span>(<span class="st">"bacon"</span>, <span class="st">"eggs"</span>), </span>
-<span id="cb102-7"><a href="#cb102-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower_value =</span> <span class="fu">c</span>(actual_pairs_pc[i,<span class="dv">1</span>], actual_pairs_pc[i,<span class="dv">2</span>])</span>
-<span id="cb102-8"><a href="#cb102-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb102-9"><a href="#cb102-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">upper_value =</span> lower_value)</span>
-<span id="cb102-10"><a href="#cb102-10" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb102-11"><a href="#cb102-11" aria-hidden="true" tabindex="-1"></a>  result <span class="ot">&lt;-</span> <span class="fu">deduplicated_reach_fc</span>(</span>
-<span id="cb102-12"><a href="#cb102-12" aria-hidden="true" tabindex="-1"></a>  thresholds,</span>
-<span id="cb102-13"><a href="#cb102-13" aria-hidden="true" tabindex="-1"></a>  actual_distr, </span>
-<span id="cb102-14"><a href="#cb102-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">sigma =</span> tcc_corr</span>
-<span id="cb102-15"><a href="#cb102-15" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb102-16"><a href="#cb102-16" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb102-17"><a href="#cb102-17" aria-hidden="true" tabindex="-1"></a>  my_list[[i]] <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb102-18"><a href="#cb102-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">bacon =</span> actual_pairs_pc[i,<span class="dv">1</span>],</span>
-<span id="cb102-19"><a href="#cb102-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">eggs =</span> actual_pairs_pc[i,<span class="dv">2</span>],</span>
-<span id="cb102-20"><a href="#cb102-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">pc =</span> result</span>
-<span id="cb102-21"><a href="#cb102-21" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb102-22"><a href="#cb102-22" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb102-23"><a href="#cb102-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb102-24"><a href="#cb102-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb102-25"><a href="#cb102-25" aria-hidden="true" tabindex="-1"></a>pmvnorm_pairs_pc <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(my_list) <span class="sc">%&gt;%</span> </span>
-<span id="cb102-26"><a href="#cb102-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">source =</span> <span class="st">"pmvnorm"</span>)</span>
-<span id="cb102-27"><a href="#cb102-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb102-28"><a href="#cb102-28" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(pmvnorm_pairs_pc)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb100"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb100-1"><a href="#cb100-1" aria-hidden="true" tabindex="-1"></a>my_list <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb100-2"><a href="#cb100-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-3"><a href="#cb100-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(actual_pairs_pc)){</span>
+<span id="cb100-4"><a href="#cb100-4" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb100-5"><a href="#cb100-5" aria-hidden="true" tabindex="-1"></a>  thresholds <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb100-6"><a href="#cb100-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="fu">c</span>(<span class="st">"bacon"</span>, <span class="st">"eggs"</span>), </span>
+<span id="cb100-7"><a href="#cb100-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower_value =</span> <span class="fu">c</span>(actual_pairs_pc[i,<span class="dv">1</span>], actual_pairs_pc[i,<span class="dv">2</span>])</span>
+<span id="cb100-8"><a href="#cb100-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb100-9"><a href="#cb100-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">upper_value =</span> lower_value)</span>
+<span id="cb100-10"><a href="#cb100-10" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb100-11"><a href="#cb100-11" aria-hidden="true" tabindex="-1"></a>  result <span class="ot">&lt;-</span> <span class="fu">deduplicated_reach_fc</span>(</span>
+<span id="cb100-12"><a href="#cb100-12" aria-hidden="true" tabindex="-1"></a>  thresholds,</span>
+<span id="cb100-13"><a href="#cb100-13" aria-hidden="true" tabindex="-1"></a>  actual_distr, </span>
+<span id="cb100-14"><a href="#cb100-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">sigma =</span> tcc_corr</span>
+<span id="cb100-15"><a href="#cb100-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb100-16"><a href="#cb100-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb100-17"><a href="#cb100-17" aria-hidden="true" tabindex="-1"></a>  my_list[[i]] <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb100-18"><a href="#cb100-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">bacon =</span> actual_pairs_pc[i,<span class="dv">1</span>],</span>
+<span id="cb100-19"><a href="#cb100-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">eggs =</span> actual_pairs_pc[i,<span class="dv">2</span>],</span>
+<span id="cb100-20"><a href="#cb100-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">pc =</span> result</span>
+<span id="cb100-21"><a href="#cb100-21" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb100-22"><a href="#cb100-22" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb100-23"><a href="#cb100-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-24"><a href="#cb100-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-25"><a href="#cb100-25" aria-hidden="true" tabindex="-1"></a>pmvnorm_pairs_pc <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(my_list) <span class="sc">%&gt;%</span> </span>
+<span id="cb100-26"><a href="#cb100-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">source =</span> <span class="st">"pmvnorm"</span>)</span>
+<span id="cb100-27"><a href="#cb100-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb100-28"><a href="#cb100-28" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(pmvnorm_pairs_pc)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  bacon eggs          pc  source
 1     0    0 0.463502380 pmvnorm
@@ -1947,15 +1948,15 @@ eggs  0.3228499 1.0000000</code></pre>
 6     1    0 0.061762385 pmvnorm</code></pre>
 </div>
 </div>
-<p>Compare actual and sim:</p>
+<p>Compare actual and pmvnorm:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb104"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a>compare <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
-<span id="cb104-2"><a href="#cb104-2" aria-hidden="true" tabindex="-1"></a>  actual_pairs_pc <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>n),</span>
-<span id="cb104-3"><a href="#cb104-3" aria-hidden="true" tabindex="-1"></a>  pmvnorm_pairs_pc</span>
-<span id="cb104-4"><a href="#cb104-4" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span> </span>
-<span id="cb104-5"><a href="#cb104-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> source, <span class="at">values_from =</span> pc)</span>
-<span id="cb104-6"><a href="#cb104-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb104-7"><a href="#cb104-7" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(compare)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb102"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb102-1"><a href="#cb102-1" aria-hidden="true" tabindex="-1"></a>compare <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb102-2"><a href="#cb102-2" aria-hidden="true" tabindex="-1"></a>  actual_pairs_pc <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>n),</span>
+<span id="cb102-3"><a href="#cb102-3" aria-hidden="true" tabindex="-1"></a>  pmvnorm_pairs_pc</span>
+<span id="cb102-4"><a href="#cb102-4" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span> </span>
+<span id="cb102-5"><a href="#cb102-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> source, <span class="at">values_from =</span> pc)</span>
+<span id="cb102-6"><a href="#cb102-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb102-7"><a href="#cb102-7" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(compare)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 6 × 4
   bacon  eggs actual pmvnorm
@@ -1968,15 +1969,30 @@ eggs  0.3228499 1.0000000</code></pre>
 6     1     0 0.0620 0.0618 </code></pre>
 </div>
 </div>
-<p>Compare actual and pmvnorm:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb106"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb106-1"><a href="#cb106-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">%&gt;%</span></span>
-<span id="cb106-2"><a href="#cb106-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> actual, <span class="at">y =</span> pmvnorm)) <span class="sc">+</span></span>
-<span id="cb106-3"><a href="#cb106-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">col =</span> <span class="st">"maroon"</span>) <span class="sc">+</span></span>
-<span id="cb106-4"><a href="#cb106-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">slope =</span> <span class="dv">1</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">col =</span> <span class="st">"lightgrey"</span>) <span class="sc">+</span></span>
-<span id="cb106-5"><a href="#cb106-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
-<span id="cb106-6"><a href="#cb106-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
-<span id="cb106-7"><a href="#cb106-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"actual vs pmvnorm pairs of values"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb104"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">%&gt;%</span></span>
+<span id="cb104-2"><a href="#cb104-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> actual, <span class="at">y =</span> pmvnorm)) <span class="sc">+</span></span>
+<span id="cb104-3"><a href="#cb104-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">col =</span> <span class="st">"maroon"</span>) <span class="sc">+</span></span>
+<span id="cb104-4"><a href="#cb104-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">slope =</span> <span class="dv">1</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">col =</span> <span class="st">"lightgrey"</span>) <span class="sc">+</span></span>
+<span id="cb104-5"><a href="#cb104-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
+<span id="cb104-6"><a href="#cb104-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
+<span id="cb104-7"><a href="#cb104-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"actual vs pmvnorm pairs of values"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-55-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>It works!</p>
+<p>For a better view of how close the results from pmvnorm are to the actual values, we can look at the log values:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb105"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb105-1"><a href="#cb105-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">%&gt;%</span></span>
+<span id="cb105-2"><a href="#cb105-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> <span class="fu">log</span>(actual), <span class="at">y =</span> <span class="fu">log</span>(pmvnorm))) <span class="sc">+</span></span>
+<span id="cb105-3"><a href="#cb105-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">col =</span> <span class="st">"maroon"</span>) <span class="sc">+</span></span>
+<span id="cb105-4"><a href="#cb105-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">slope =</span> <span class="dv">1</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">col =</span> <span class="st">"lightgrey"</span>) <span class="sc">+</span></span>
+<span id="cb105-5"><a href="#cb105-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"actual vs pmvnorm pairs of log values"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -1985,28 +2001,12 @@ eggs  0.3228499 1.0000000</code></pre>
 </div>
 </div>
 </div>
-<p>It works!</p>
-<p>For a better view of how close the simulation is to pmvnorm, we can look at the log values:</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb107"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb107-1"><a href="#cb107-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">%&gt;%</span></span>
-<span id="cb107-2"><a href="#cb107-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> <span class="fu">log</span>(actual), <span class="at">y =</span> <span class="fu">log</span>(pmvnorm))) <span class="sc">+</span></span>
-<span id="cb107-3"><a href="#cb107-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">col =</span> <span class="st">"maroon"</span>) <span class="sc">+</span></span>
-<span id="cb107-4"><a href="#cb107-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">slope =</span> <span class="dv">1</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">col =</span> <span class="st">"lightgrey"</span>) <span class="sc">+</span></span>
-<span id="cb107-5"><a href="#cb107-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"actual vs pmvnorm pairs of log values"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-57-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
 <p>Let’s zoom in on the values where actual is one value but pmvnorm gives different values:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb108"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb108-1"><a href="#cb108-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">%&gt;%</span> </span>
-<span id="cb108-2"><a href="#cb108-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">log_actual =</span> <span class="fu">log</span>(actual)) <span class="sc">%&gt;%</span> </span>
-<span id="cb108-3"><a href="#cb108-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(log_actual <span class="sc">&lt;</span> <span class="sc">-</span><span class="dv">6</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb108-4"><a href="#cb108-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">inner_join</span>(bef, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"bacon"</span>, <span class="st">"eggs"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb106"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb106-1"><a href="#cb106-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">%&gt;%</span> </span>
+<span id="cb106-2"><a href="#cb106-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">log_actual =</span> <span class="fu">log</span>(actual)) <span class="sc">%&gt;%</span> </span>
+<span id="cb106-3"><a href="#cb106-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(log_actual <span class="sc">&lt;</span> <span class="sc">-</span><span class="dv">6</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb106-4"><a href="#cb106-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">inner_join</span>(bef, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"bacon"</span>, <span class="st">"eggs"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 7 × 6
   bacon  eggs  actual  pmvnorm log_actual freqs
@@ -2023,26 +2023,26 @@ eggs  0.3228499 1.0000000</code></pre>
 <p>=&gt; they all have the same % in the actual dataset because their frequency is just 1. Although pmvnorm gives different values they are so small (all &lt; 0.5%) it doesn’t make any material difference.</p>
 <p>In the context of an advertising campaign, we could imagine that the products are in fact channels, and the values are the number of impacts. Then the reach and frequency of the campaign would be fully defined by just summing values across the products:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb110"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb110-1"><a href="#cb110-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">%&gt;%</span> </span>
-<span id="cb110-2"><a href="#cb110-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(actual<span class="sc">:</span>pmvnorm, <span class="at">names_to =</span> <span class="st">"source"</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb110-3"><a href="#cb110-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">impacts =</span> bacon <span class="sc">+</span> eggs) <span class="sc">%&gt;%</span> </span>
-<span id="cb110-4"><a href="#cb110-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(source, impacts) <span class="sc">%&gt;%</span> </span>
-<span id="cb110-5"><a href="#cb110-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">pc =</span> <span class="fu">sum</span>(value)) <span class="sc">%&gt;%</span> </span>
-<span id="cb110-6"><a href="#cb110-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> impacts, <span class="at">y =</span> pc, <span class="at">fill =</span> source)) <span class="sc">+</span></span>
-<span id="cb110-7"><a href="#cb110-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat=</span><span class="st">"identity"</span>, <span class="at">position =</span> <span class="st">"dodge"</span>) <span class="sc">+</span></span>
-<span id="cb110-8"><a href="#cb110-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"slateblue"</span>, <span class="st">"lightpink"</span>)) <span class="sc">+</span></span>
-<span id="cb110-9"><a href="#cb110-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">8</span>) <span class="sc">+</span></span>
-<span id="cb110-10"><a href="#cb110-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
-<span id="cb110-11"><a href="#cb110-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(</span>
-<span id="cb110-12"><a href="#cb110-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">label=</span>scales<span class="sc">::</span><span class="fu">percent</span>(pc, <span class="at">accuracy =</span> <span class="dv">1</span>, <span class="at">fill =</span> source)),</span>
-<span id="cb110-13"><a href="#cb110-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">position =</span> <span class="fu">position_dodge</span>(<span class="at">width =</span> <span class="fl">0.8</span>),</span>
-<span id="cb110-14"><a href="#cb110-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">vjust =</span> <span class="sc">-</span><span class="fl">0.2</span>, <span class="at">size =</span> <span class="fl">2.5</span>) <span class="sc">+</span></span>
-<span id="cb110-15"><a href="#cb110-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"actual vs pmvorm frequencies"</span>) <span class="sc">+</span></span>
-<span id="cb110-16"><a href="#cb110-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb108"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb108-1"><a href="#cb108-1" aria-hidden="true" tabindex="-1"></a>compare <span class="sc">%&gt;%</span> </span>
+<span id="cb108-2"><a href="#cb108-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(actual<span class="sc">:</span>pmvnorm, <span class="at">names_to =</span> <span class="st">"source"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb108-3"><a href="#cb108-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">impacts =</span> bacon <span class="sc">+</span> eggs) <span class="sc">%&gt;%</span> </span>
+<span id="cb108-4"><a href="#cb108-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(source, impacts) <span class="sc">%&gt;%</span> </span>
+<span id="cb108-5"><a href="#cb108-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">pc =</span> <span class="fu">sum</span>(value)) <span class="sc">%&gt;%</span> </span>
+<span id="cb108-6"><a href="#cb108-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> impacts, <span class="at">y =</span> pc, <span class="at">fill =</span> source)) <span class="sc">+</span></span>
+<span id="cb108-7"><a href="#cb108-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat=</span><span class="st">"identity"</span>, <span class="at">position =</span> <span class="st">"dodge"</span>) <span class="sc">+</span></span>
+<span id="cb108-8"><a href="#cb108-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"slateblue"</span>, <span class="st">"lightpink"</span>)) <span class="sc">+</span></span>
+<span id="cb108-9"><a href="#cb108-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">8</span>) <span class="sc">+</span></span>
+<span id="cb108-10"><a href="#cb108-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
+<span id="cb108-11"><a href="#cb108-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(</span>
+<span id="cb108-12"><a href="#cb108-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">label=</span>scales<span class="sc">::</span><span class="fu">percent</span>(pc, <span class="at">accuracy =</span> <span class="dv">1</span>, <span class="at">fill =</span> source)),</span>
+<span id="cb108-13"><a href="#cb108-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">position =</span> <span class="fu">position_dodge</span>(<span class="at">width =</span> <span class="fl">0.8</span>),</span>
+<span id="cb108-14"><a href="#cb108-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">vjust =</span> <span class="sc">-</span><span class="fl">0.2</span>, <span class="at">size =</span> <span class="fl">2.5</span>) <span class="sc">+</span></span>
+<span id="cb108-15"><a href="#cb108-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"actual vs pmvorm frequencies"</span>) <span class="sc">+</span></span>
+<span id="cb108-16"><a href="#cb108-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-59-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-58-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -2051,8 +2051,8 @@ eggs  0.3228499 1.0000000</code></pre>
 </section>
 <section id="conclusion" class="level1" data-number="4">
 <h1 data-number="4"><span class="header-section-number">4</span> Conclusion</h1>
-<p>In this post we saw that given just their marginal distributions and a correlation matrix we can recover the entire reach and frequency distribution of a multivariate distribution using the appropriate bounds of the multivariate normal cumulative distribution. This approach is an elegant and stable alternative to creating a simulated dataset.<br>
-In the context of cross media measurement, it can be used to estimate the cross media reach using the industry standard measurement for each media (i.e.&nbsp;the media currencies), and a correlation matrix from a separate single-source study.</p>
+<p>In this post we saw that given just their marginal distributions and a correlation matrix we can recover the entire reach and frequency distribution of a multivariate dataset using the appropriate bounds of the multivariate normal cumulative distribution. This approach is an elegant and stable alternative to creating a simulated dataset.</p>
+<p>In the context of cross media measurement, it can be used to estimate the cross media reach using the industry standard measurement for each media (i.e.&nbsp;the media currencies), and a correlation matrix from a separate single-source study.</p>
 
 
 

@@ -21,8 +21,8 @@ z_max <- max(Z)
 z_scaled <- (Z - z_min) / (z_max - z_min)
 
 # Create color matrix using viridis
-cols <- viridis(100)
-cols <- viridis(100, option = "turbo")
+#cols <- viridis(100)
+#cols <- viridis(100, option = "turbo")
 cols <- viridis(100, option = "plasma")
 col_indices <- as.numeric(cut(z_scaled, breaks = 100))
 col_matrix <- matrix(cols[col_indices], nrow = length(x))
@@ -35,7 +35,12 @@ persp(
   x, y, Z,
   theta = 45, phi = 25, expand = 0.7,
   col = facet_col,
+  ltheta = 120, lphi = 45,
+  shade = 0.4, 
+  border = "#FFFFFF40",
   ticktype = "detailed",
+  cex.axis = 0.5,    # ← smaller tick labels
+  cex.lab = 0.7,     # ← slightly smaller axis titles
   xlab = "X", ylab = "Y", zlab = "CDF",
   main = "Cumulative Bivariate Normal"
 )
