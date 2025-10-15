@@ -20,7 +20,7 @@ format: html
 bibliography: bibliography.bib
 toc: true
 number-sections: true
-image: "cumulative_normal.png"
+image: "cumulative_normal_plot.png"
 ---
 
 ```{r setup, include=FALSE}
