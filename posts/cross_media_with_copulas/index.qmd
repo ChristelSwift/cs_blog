@@ -51,7 +51,7 @@ The property called the **Probability Integral Transform**, also known as the **
 
 Using this property we can then map the uniform margins from our copula to any continuous distribution using their quantile function.
 
-Working with copulas means that we can separate the problems of modelling the margins and modelling the dependence structure. These tow steps can be done independently.
+Working with copulas means that we can separate the problems of modelling the margins and modelling the dependence structure. These two steps can be done independently.
 
 In practice, a possible multivariate modelling workflow could be as follows:\
 - given a multivariate distribution, take their margins and find the best univariate model for each one.\
