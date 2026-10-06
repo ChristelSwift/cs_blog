@@ -8,8 +8,8 @@
 
 <meta name="author" content="Christel Lacaze Swift">
 <meta name="dcterms.date" content="2026-10-06">
-<meta name="keywords" content="cross media meeasurement, reach and frequency, copulas">
-<meta name="description" content="Using the multivariate normal distribution to estimate weekly reach from daily reach">
+<meta name="keywords" content="cross media measurement, reach and frequency, copulas">
+<meta name="description" content="Using the multivariate normal distribution with Tetrachoric correlation to estimate weekly reach from daily reach">
 
 <title>Weekly reach from daily reach using copulas – my blog</title>
 <style>
@@ -361,7 +361,7 @@ window.Quarto = {
       <h1 class="title">Weekly reach from daily reach using copulas</h1>
                   <div>
         <div class="description">
-          <p>Using the multivariate normal distribution to estimate weekly reach from daily reach</p>
+          <p>Using the multivariate normal distribution with Tetrachoric correlation to estimate weekly reach from daily reach</p>
         </div>
       </div>
                           <div class="quarto-categories">
@@ -369,6 +369,7 @@ window.Quarto = {
                 <div class="quarto-category">reach and frequency</div>
                 <div class="quarto-category">multivariate modelling</div>
                 <div class="quarto-category">copulas</div>
+                <div class="quarto-category">tetrachoric correlation</div>
               </div>
                   </div>
   </div>
@@ -403,14 +404,14 @@ window.Quarto = {
   <div>
     <div class="abstract">
       <div class="block-title">Abstract</div>
-      <p>In a previous article, I showed how to use a simulation from a Gaussian copula to re-create the multivariate distribution of consumed units (time spent, number of films watched etc…) across a population. In this post, we will see how the same can be done using the multivariate Normal cumulative distribution function.</p>
+      <p>Another use of copulas is to estimate weekly reach from daily reach using the aggregated daily reach from one data source and a correlation matrix from another data source.</p>
     </div>
   </div>
 
   <div>
     <div class="keywords">
       <div class="block-title">Keywords</div>
-      <p>cross media meeasurement, reach and frequency, copulas</p>
+      <p>cross media measurement, reach and frequency, copulas</p>
     </div>
   </div>
   
@@ -1032,7 +1033,7 @@ d7 0.7631411 0.7538051 0.7681892 0.7573419 0.7615531 0.7946069 1.0000000</code><
 <span id="cb43-9"><a href="#cb43-9" aria-hidden="true" tabindex="-1"></a><span class="co"># therefore the estimated weekly reach is 1 - p_none:</span></span>
 <span id="cb43-10"><a href="#cb43-10" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span><span class="sc">-</span>p_none</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 0.1388482</code></pre>
+<pre><code>[1] 0.1388708</code></pre>
 </div>
 </div>
 <p>This is indeed the actual weekly reach.</p>
@@ -1103,12 +1104,12 @@ d7 0.7631411 0.7538051 0.7681892 0.7573419 0.7615531 0.7946069 1.0000000</code><
 <span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(results)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  station          metric  actual     copula independence
-1     st1 weekly_reach_pc 0.13771 0.13891500   0.34111691
-2     st2 weekly_reach_pc 0.01092 0.01063457   0.02298067
-3     st3 weekly_reach_pc 0.30968 0.31371089   0.73551756
-4     st4 weekly_reach_pc 0.04627 0.04581927   0.14703471
-5     st5 weekly_reach_pc 0.24010 0.24628590   0.70690391
-6     st6 weekly_reach_pc 0.04816 0.05051060   0.16086376</code></pre>
+1     st1 weekly_reach_pc 0.13771 0.13903922   0.34111691
+2     st2 weekly_reach_pc 0.01092 0.01077763   0.02298067
+3     st3 weekly_reach_pc 0.30968 0.31364545   0.73551756
+4     st4 weekly_reach_pc 0.04627 0.04593655   0.14703471
+5     st5 weekly_reach_pc 0.24010 0.24648740   0.70690391
+6     st6 weekly_reach_pc 0.04816 0.05025091   0.16086376</code></pre>
 </div>
 </div>
 <p>Compare the results:</p>

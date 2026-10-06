@@ -7,15 +7,15 @@ author:
     attributes:
         corresponding: true
 abstract: |
-  In a previous article, I showed how to use a simulation from a Gaussian copula to re-create the multivariate distribution of consumed units (time spent, number of films watched etc...) across a population.  In this post, we will see how the same can be done using the multivariate Normal cumulative distribution function.
+  Another use of copulas is to estimate weekly reach from daily reach using the aggregated daily reach from one data source and a correlation matrix from another data source.
 date: 2026-10-06
-categories: [media measurement, reach and frequency, multivariate modelling, copulas]
+categories: [media measurement, reach and frequency, multivariate modelling, copulas, tetrachoric correlation]
 keywords: 
-  - cross media meeasurement
+  - cross media measurement
   - reach and frequency 
   - copulas
 description: >
-  Using the multivariate normal distribution to estimate weekly reach from daily reach
+  Using the multivariate normal distribution with Tetrachoric correlation to estimate weekly reach from daily reach
 format: html
 toc: true
 number-sections: true
