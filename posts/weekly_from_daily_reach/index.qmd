@@ -1,0 +1,640 @@
+---
+title: "Weekly reach from daily reach using copulas"
+author:
+  - name: Christel Lacaze Swift
+    affiliation: BBC
+    email: christel.swift@bbc.co.uk
+    attributes:
+        corresponding: true
+abstract: |
+  In a previous article, I showed how to use a simulation from a Gaussian copula to re-create the multivariate distribution of consumed units (time spent, number of films watched etc...) across a population.  In this post, we will see how the same can be done using the multivariate Normal cumulative distribution function.
+date: 2026-10-06
+categories: [media measurement, reach and frequency, multivariate modelling, copulas]
+keywords: 
+  - cross media meeasurement
+  - reach and frequency 
+  - copulas
+description: >
+  Using the multivariate normal distribution to estimate weekly reach from daily reach
+format: html
+toc: true
+number-sections: true
+image: "bivariate_plot.png"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r warning=FALSE, message=FALSE, results='hide'}
+library(mvtnorm) # to use the multivariate normal distribution rmvnorm and its cumulative distribution pmvnorm
+# make sure to load tidyverse after MASS so that the select function comes from dplyr
+library(tidyverse) 
+library(psych) # for the pairs.panels and phi2tetra functions
+library(patchwork) # to display plots side by side
+library(latex2exp) # to use scientific notation on plots
+
+options(java.parameters = c("-XX:+UseConcMarkSweepGC", "-Xmx32g"))
+gc()
+
+theme_set(theme_classic()) # sets the ggplot theme for the session
+options(scipen = 999) # so that numbers don't display with the exponent
+options(dplyr.summarise.inform = FALSE) # to suppress annoying grouping warning
+```
+
+
+Here we show how we can use copulas, more specifically a multi-variate Normal distribution paired with a Tetrachoric correlation, to estimate weekly reach from daily reach. 
+
+# the Tetrachoric correlation 
+
+## definition
+
+When it comes to measuring the association between binary variables, one possible approach is to use the Tetrachoric correlation.  
+
+This type of correlation relies on the idea that the binary variable actually comes from a **latent normal distribution** that has been dichotomised, such that values below a threshold become one outcome (e.g. 0, or "fail") and values above become the other outcome (e.g. 1, or "pass").
+
+Take the case of 2 binary variables $X_1$ and $X_2$ with values 0 or 1. We assume these arise from the latent Normal variables $Z_1$ and $Z_2$:
+
+$$
+\begin{pmatrix}
+Z_1 \\
+Z_2
+\end{pmatrix}
+\sim N \left(
+\begin{pmatrix}
+0 \\
+0
+\end{pmatrix},
+\begin{pmatrix}
+1 & \sigma \\
+\sigma & 1
+\end{pmatrix}
+\right),
+$$
+
+and then $X_1$ and $X_2$ are derived by applying a threshold to the continuous margins $Z_1$ and $Z_2$:
+
+$$
+X_1 =
+\begin{cases}
+0 & \text{if } Z_1 \leq t_1, \\
+1 & \text{otherwise},
+\end{cases}
+\qquad
+X_2 =
+\begin{cases}
+0 & \text{if } Z_2 \leq t_2, \\
+1 & \text{otherwise}.
+\end{cases}
+$$
+
+The thresholds $t_1$ and $t_2$ are determined from the observed marginal probabilities:
+
+$$
+P(X_1 = 0) = P(Z_1 \leq t_1) =  \Phi(t_1),
+$$
+
+$$
+P(X_2 = 0) = P(Z_1 \leq t_1) = \Phi(t_2),
+$$
+
+where $\Phi(\cdot)$ is the standard normal cumulative distribution function.  
+
+The **tetrachoric correlation** is then the value of $\sigma$ that reproduces the observed $2 \times 2$ contingency table. In particular,
+
+$$
+P(X_1 = 0, X_2 = 0)
+=
+P(Z_1 \leq t_1, Z_2 \leq t_2)
+=
+\Phi_2(t_1, t_2; \sigma)
+$$
+
+where $\Phi_2(\cdot,\cdot;\sigma)$ denotes the bivariate normal CDF with correlation $\sigma$.
+
+In other words, the Tetrachoric correlation is the latent Pearson correlation between $Z_1$ and $Z_2$ that would generate the observed bivariate binary outcomes (i.e. the contingency table) after applying the thresholds to each margin.
+
+
+## illustrative example in 2 dimensions 
+
+
+Suppose we asked 100 respondents whether they listened to a radio station over 2 days:  
+- $D_1$ is the reach on day 1   
+- $D_2$ is the reach on day 2   
+
+Build the contingency table:
+```{r}
+ct <- matrix(
+  data = c(60, 5, 20, 15), 
+  nrow = 2, 
+  byrow = TRUE,
+  dimnames = list(c("d1=0", "d1=1"), c("d2=0", "d2=1"))
+  )
+
+ct
+```
+so 60/100 respondents didn't listen on either day and 15/100 listened on both days.  
+
+Same as a dataframe:
+```{r}
+df <- data.frame(
+  d1 = c(0,0,1,1),
+  d2 = c(0,1,0,1),
+  value = c(60,5,20,15)
+) |> 
+  mutate(p = value / sum(value))
+
+df
+```
+
+From the contingency table we see that the probability that $D_1 = 0$ and $D_2 = 0$ is 60%.  
+
+Calculate the margins, i.e. the reach% of each day:
+```{r}
+margins <- rbind(
+  df %>% 
+    group_by(d1) %>% 
+    summarise(value = sum(value)) %>%  
+    mutate(
+      cat = d1,
+      day = "d1",
+      pc = value / sum(value)
+      ) %>% 
+    select(day, cat, pc),
+  
+  df %>% 
+    group_by(d2) %>% 
+    summarise(value = sum(value)) %>%  
+    mutate(
+      cat = d2,
+      day = "d2",
+      pc = value / sum(value)
+      ) %>% 
+    select(day, cat, pc)
+) %>% 
+  filter(cat == 1)
+
+margins
+```
+so the reach on day 1 is 35% and on day 2 it's 20%.  
+
+We can use the function `psych::tetrachoric` to calculate the Tetrachoric correlation from the contingency table:
+```{r}
+tetr_cor <- tetrachoric(ct)
+
+tetr_cor
+```
+This returns both the Tetrachoric correlation and the values of tau.  These correspond to the quintiles for each margin such that:
+
+$P(D1 = 1) = P(Z_1 > \text{tau}_1) =  1 - P(Z_1 \leq \text{tau}_1) = 1 - 0.35$
+
+$P(D2 = 1) = P(Z_2 > \text{tau}_2) =  1 - P(Z_2 \leq \text{tau}_2) = 1 - 0.2$
+
+In other words, for $D_1$ it shows the threshold value such that 35% of its distribution is to the right of the threshold.
+
+```{r}
+qnorm(p = 1 - 0.35)
+```
+
+Likewise for $D_2$ it shows the threshold value such that 20% of its distribution is to the right of the threshold.
+```{r}
+qnorm(p = 1 - 0.2)
+```
+
+This is what the underlying Normal marginal distributions look like, with their thresholds:
+```{r}
+threshold_d1 <- tetr_cor$tau[1]
+threshold_d2 <- tetr_cor$tau[2]
+
+df <- data.frame(x = seq(-4, 4, length.out = 500))
+df$y <- dnorm(df$x)
+
+p1 <- ggplot(df, aes(x, y)) +
+  geom_line(colour = "steelblue", linewidth = 1.2) +
+  geom_area(data = subset(df, x >= threshold_d1),
+            fill = "firebrick", alpha = 0.3) +
+  geom_vline(xintercept = threshold_d1, linetype = "dashed",
+             colour = "firebrick", linewidth = 1) +
+  annotate(
+    "text",
+    x = threshold_d1,
+    y = max(df$y) * 0.9,
+    label = paste0("tau = ", round(threshold_d1, 2)),
+    colour = "firebrick",
+    hjust = -0.1
+  ) +
+  labs(
+    title = "Latent distribution for Day 1",
+    subtitle = "Day 1 reach = 35%",
+    x = TeX("$Z_1$"),
+    y = "Density"
+  ) 
+
+p2 <- ggplot(df, aes(x, y)) +
+  geom_line(colour = "steelblue", linewidth = 1.2) +
+  geom_area(data = subset(df, x >= threshold_d2),
+            fill = "firebrick", alpha = 0.3) +
+  geom_vline(xintercept = threshold_d2, linetype = "dashed",
+             colour = "firebrick", linewidth = 1) +
+  annotate(
+    "text",
+    x = threshold_d2,
+    y = max(df$y) * 0.9,
+    label = paste0("tau = ", round(threshold_d2, 2)),
+    colour = "firebrick",
+    hjust = -0.1
+  ) +
+  labs(
+    title = "Latent distribution for Day 2",
+    subtitle = "Day 2 reach = 20%",
+    x = TeX("$Z_2$"),
+    y = "Density"
+  ) 
+
+p1 + p2
+```
+
+The shaded area under the curve covers 35% of the distribution for day 1 and 20% for day 2.
+
+Now we can look at their underlying bivariate Normal distribution, using their Tetrachoric correlation as sigma:
+```{r}
+# grid
+x <- seq(-3, 3, length.out = 100)
+y <- seq(-3, 3, length.out = 100)
+grid <- expand.grid(x = x, y = y)
+
+
+mu <- c(0, 0)
+sigma <- matrix(c(1, tetr_cor$rho, tetr_cor$rho, 1), 2)
+
+grid$z <- dmvnorm(cbind(grid$x, grid$y), mean = mu, sigma = sigma)
+
+ggplot(grid, aes(x, y, z = z)) +
+  geom_contour_filled() +
+  scale_fill_manual(
+    values = colorRampPalette(c("white", "steelblue", "navy"))(11)
+  ) +
+
+# --- shaded quadrants (exclude bottom-left) ---
+annotate("rect", xmin = threshold_d1, xmax = Inf,
+         ymin = threshold_d2, ymax = Inf,
+         fill = "red", alpha = 0.1) +
+
+annotate("rect", xmin = -Inf, xmax = threshold_d1,
+         ymin = threshold_d2, ymax = Inf,
+         fill = "red", alpha = 0.1) +
+
+annotate("rect", xmin = threshold_d1, xmax = Inf,
+         ymin = -Inf, ymax = threshold_d2,
+         fill = "red", alpha = 0.1) +
+
+
+  # --- threshold lines ---
+  geom_vline(xintercept = threshold_d1, linetype = "dashed") +
+  geom_hline(yintercept = threshold_d2, linetype = "dashed") +
+
+  scale_x_continuous(breaks = seq(-2,2, by = 1)) +
+  scale_y_continuous(breaks = seq(-2,2, by = 1)) +
+  
+  theme(legend.position = "none") +
+  labs(
+    title = "Latent bivariate distribution for Day 1 and Day 2", 
+    x = TeX("$Z_1$"), y = TeX("$Z_2$")
+    )
+```
+
+The shaded area corresponds to the reach on either day, i.e. the combined reach: 
+
+$$P(D_1 = 1 | D_2 = 1) = 1 - P(D1 = 0, D2 = 0)$$
+
+We can calculate the probability $p_{00}$ that $D_1 = 0$ and $D_2 = 0$ with:
+
+$$p_{00} = \Phi_2(t_1, t_2; \sigma),$$
+
+```{r}
+# Calculate the joint probability 
+# that D1=0 and D2=0:
+p_none <- pmvnorm(
+    lower = rep(-Inf, ncol(sigma)), 
+    upper = tetr_cor$tau, 
+    sigma = sigma
+  )
+
+p_none <- as.numeric(p_none)
+
+scales::percent(p_none) 
+```
+
+This shows that using a multivariate Normal distribution with the Tetrachoric correlation and the threshold values of each margin, we can retrieve the various probabilities of the contingency table.  
+
+
+# using radio listening dataset
+
+This dataset was created using R's `synthpop` package and is based on the daily radio listening of 11 stations over a week from RAJAR data in 2022.  It contains 100k synthetic respondents and is available on request.  
+```{r}
+db <- read.csv("syn_daily_listening_db.csv")
+summary(db)
+```
+
+```{r}
+db |> 
+  summarise(
+    n_rows = n(),
+    n_days = n_distinct(day),
+    n_stations = n_distinct(station),
+    n_resps = n_distinct(id)
+  )
+```
+
+Weekly reach for each station:
+```{r}
+weekly_reach <- db |> 
+  group_by(id, station) |> 
+  summarise(n_days = sum(mins > 0)) |> 
+  group_by(station) |> 
+  summarise(reach = sum(n_days > 0)) |> 
+  ungroup() |> 
+  mutate(reach_pc = reach / n_distinct(db$id))
+
+weekly_reach |> 
+  ggplot(aes(x = station, y = reach_pc, fill = station)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "weekly reach by station") +
+  theme(legend.position = "none")
+```
+
+
+Daily reach for each station:
+```{r}
+daily_reach <- db |> 
+  group_by(station, day) |> 
+  summarise(reach = sum(mins > 0)) |> 
+  ungroup() |> 
+  mutate(reach_pc = reach / n_distinct(db$id))
+
+daily_reach |> 
+  ggplot(aes(x = day, y = reach_pc, fill = station)) +
+  geom_bar(stat = "identity") +
+  scale_x_continuous(breaks = 1:7) +
+  scale_y_continuous(labels = scales::percent) +
+  facet_wrap(~station, scale = "free") +
+  labs(title = "daily reach by station") +
+  theme(legend.position = "none")
+```
+
+```{r}
+daily_freq_distr <- db |> 
+  group_by(id, station) |> 
+  summarise(n_days = sum(mins > 0)) |> 
+  group_by(station, n_days) |> 
+  summarise(reach = n()) |> 
+  group_by(station) |> 
+  mutate(
+    reach_pc = reach / sum(reach),
+    source = "actual"
+    )
+
+daily_freq_distr |> 
+  filter(n_days > 0) |> 
+  ggplot(aes(x = n_days, y = reach_pc, fill = station)) +
+  geom_bar(stat = "identity") +
+  scale_x_continuous(breaks = 1:7) +
+  scale_y_continuous(labels = scales::percent) +
+  facet_wrap(~station, scales = "free") +
+  labs(
+    title = "distribution of the number of days by station",
+    subtitle = "excluding n_days = 0"
+    ) +
+  theme(legend.position = "none")
+```
+
+=> we see different shapes for the distribution of the number of days listening by users: in particular station 5 shows a strong skew towards users who listen every day of the week, whereas station 1 has a strong incidence of users who only listened on one day out of 7.
+
+If all we had were the aggregated daily reach for each station and a correlation matrix, could we estimate the weekly reach?
+
+
+## example with one station
+
+Let's walk through the process with the first station.  
+```{r}
+weekly_reach |> 
+  filter(station == "st1")
+```
+The actual weekly reach for station 1 is 13.8%.  
+
+```{r}
+daily_reach |> 
+  filter(station == "st1") |> 
+  ggplot(aes(x = day, y = reach_pc)) +
+  geom_bar(stat = "identity", fill = "thistle") +
+  scale_x_continuous(breaks = 1:7) +
+  scale_y_continuous(labels = scales::percent) +
+  geom_text(
+    aes(label = scales::percent(reach_pc, accuracy = 0.1)),
+    size = 3,
+    vjust = -0.3
+    ) +
+  labs(title = "station 1: daily reach%")
+```
+
+The weekly reach $R_w$ is bounded by these 2 values:    
+- in the case where we reach the same people everyday, then it is at least the maximum value of the daily reach levels, so 6.4%.    
+- in the case where we reach entirely new people everyday, then it is at most the sum of the daily reach levels, so 40.5%.   
+
+$$R_w \in [6.4\%, 40,5\%] $$
+
+If we had no information on the habitual nature of radio listening throughout the week, we could use the assumption of independence between days to estimate the weekly reach:
+
+$$R_w = 1 - \prod_{d=1}^7 (1 - R_d)$$
+
+```{r}
+daily_reach |> 
+  filter(station == "st1") |> 
+  summarise(indep_weekly_reach_pc = 1 - prod(1 - reach_pc))
+```
+=> if we assume the days are independent then the estimated weekly reach for the first station would be 34.1% which is way more than the actual weekly reach of 13.8% and quite close to the maximum possible value.   
+
+To get the estimate using copulas, we need 2 ingredients:   
+- the daily margins and their corresponding quantile (threshold) on a standard normal curve Z ~ N(0,1).  
+- the Tetrachoric correlation between all 21 possible pairs of days.   
+
+Then we can use them in a multivariate normal cumulative distribution to estimate the value that corresponds to day 1 = 0, day 2 = 0, ... , day 7 = 0.  
+
+Starting with the daily margins, for each day we find the quantile that corresponds to the station's daily reach:
+```{r}
+thresholds <- daily_reach |> 
+  filter(station == "st1") |> 
+  # Find the threshold points on a standard normal curve Z ~ N(0,1)
+  # These represent the boundaries where 0 becomes 1:
+   mutate(threshold = qnorm(1-reach_pc))
+
+thresholds
+```
+
+Now we calculate the tetrachoric correlation for all possible pairs of days for station 1.  To do this we need a matrix showing each respondent as a row and each day as a column, and the values are 0 or 1, indicating if the person has listen to the station that day:
+```{r}
+days <- paste0("d", 1:7)
+
+usage_mat <- db |> 
+  filter(station == "st1") |> 
+  # the Tetrachoric correlation requires binary data:
+  mutate(
+    day = paste0("d", day),
+    reach_flag = if_else(mins > 0 , 1, 0)
+    ) |> 
+  select(id, day, reach_flag) |> 
+  pivot_wider(
+    names_from = day, 
+    values_from = reach_flag,
+    values_fill = 0
+    ) |> 
+  select(all_of(days)) |> 
+  as.matrix()
+    
+dim(usage_mat)
+```
+
+Check the first 5 respondents:
+```{r}
+usage_mat[1:5,]  
+```
+
+Check we match the daily reach:
+```{r}
+colSums(usage_mat)/nrow(usage_mat)
+```
+
+which matches:
+```{r}
+daily_reach |> 
+  filter(station == "st1") |> 
+  pull(reach_pc)
+```
+
+Calculate the tetrachoric correlation:
+```{r}
+tetra <- tetrachoric(usage_mat)$rho
+tetra
+```
+
+Using this tetrachoric correlation, we can now estimate the probability that d1=0, d2=0, ..., d7=0:
+```{r}
+p_none <- pmvnorm(
+    lower = rep(-Inf, ncol(tetra)), 
+    upper = thresholds$threshold, 
+    sigma = tetra
+  )
+
+p_none <- as.numeric(p_none)
+
+# therefore the estimated weekly reach is 1 - p_none:
+1-p_none
+```
+
+This is indeed the actual weekly reach.
+
+
+## repeat for all stations
+
+For each station we calculate the tetrachoric correlation between all possible pairs of days:
+
+```{r warning = FALSE}
+days <- paste0("d", 1:7)
+stations <- paste0("st", 1:11)
+
+my_list <- list()
+
+for(i in 1:length(stations)){
+  
+  thresholds <- daily_reach |> 
+   filter(station == stations[i]) |> 
+   # Find the threshold points on a standard normal curve Z ~ N(0,1)
+   # These represent the boundaries where 0 becomes 1:
+    mutate(threshold = qnorm(1-reach_pc))
+  
+  indep_weekly_reach_pc <- thresholds |> 
+    summarise(weekly_reach_pc = 1 - prod(1-reach_pc)) |> 
+    pull(weekly_reach_pc)
+  
+  actual_weekly_reach_pc <- weekly_reach |> 
+    filter(station == stations[i]) |> 
+    pull(reach_pc)
+  
+  usage_mat <- db |> 
+    mutate(
+      reach_flag = if_else(mins > 0, 1, 0),
+      day = paste0("d", day)
+      ) |> 
+    filter(station == stations[i]) |>  
+    select(id, day, reach_flag) |> 
+    pivot_wider(
+      names_from = day, 
+      values_from = reach_flag,
+      values_fill = 0
+      ) |> 
+    select(all_of(days)) |> 
+    as.matrix()
+  
+  # Calculate the tetrachoric correlation:
+  tetra <- tetrachoric(usage_mat)$rho
+  
+  # Calculate the joint probability that d1=0, d2=0, ..., d7=0
+  p_none <- pmvnorm(
+    lower = rep(-Inf, ncol(tetra)), 
+    upper = thresholds$threshold, 
+    sigma = tetra
+  )
+  
+  # Convert to a standard numeric value
+  p_none <- as.numeric(p_none)
+
+  my_list[[i]] <- data.frame(
+    station = stations[i],
+    metric = "weekly_reach_pc",
+    actual = actual_weekly_reach_pc,
+    copula = 1 - p_none,
+    independence = indep_weekly_reach_pc
+  )
+
+}
+
+results <- bind_rows(my_list)
+head(results)
+```
+
+Compare the results:
+```{r fig.height = 8}
+results |> 
+  pivot_longer(
+    actual:independence, 
+    names_to = "source", 
+    values_to = "weekly_reach_pc"
+    ) |> 
+  ggplot(aes(x = weekly_reach_pc, y = station, fill = source)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(
+    labels = scales::percent,
+    expand = expansion(mult = c(0, 0.1))
+    ) +
+  geom_text(
+    aes(label = scales::percent(weekly_reach_pc, accuracy = 0.1)),
+    position = position_dodge(width = 0.9),
+    hjust = -0.1,
+    size = 3
+    ) +
+  labs(
+    title = "weekly reach results",
+    x = "weekly reach %"
+    ) +
+  theme(legend.position = "bottom")
+```
+This shows that using the copula approach, the estimated weekly reach is always very close to the actual value.  Using the assumption of independence between days would lead to massively inflated results which don't take into account the repeated nature of listening to a station between days.
+
+
+
+# conclusion
+
+Given just aggregate values for the daily reach and a correlation matrix, we showed how we can get a realistic estimate of the weekly reach that takes into account the usage overlaps between days.  This approach can be used with the top line results we may get from social media analytics and an inter-day correlation matrix from a separate study.  
+
+
