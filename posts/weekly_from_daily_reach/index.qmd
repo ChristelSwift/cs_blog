@@ -11,7 +11,6 @@ abstract: |
 date: 2026-10-06
 categories: [media measurement, reach and frequency, multivariate modelling, copulas, tetrachoric correlation]
 keywords: 
-  - cross media measurement
   - reach and frequency 
   - copulas
 description: >
@@ -142,12 +141,15 @@ df <- data.frame(
   d2 = c(0,1,0,1),
   value = c(60,5,20,15)
 ) |> 
-  mutate(p = value / sum(value))
+  mutate(
+    cell = paste0("p_", d1, d2),
+    p = value / sum(value)
+    )
 
 df
 ```
 
-From the contingency table we see that the probability that $D_1 = 0$ and $D_2 = 0$ is 60%.  
+From the contingency table we see that the probability $p_{00}$ that $D_1 = 0$ and $D_2 = 0$ is 60%.  
 
 Calculate the margins, i.e. the reach% of each day:
 ```{r}
@@ -178,7 +180,7 @@ margins
 ```
 so the reach on day 1 is 35% and on day 2 it's 20%.  
 
-We can use the function `psych::tetrachoric` to calculate the Tetrachoric correlation from the contingency table:
+We can use the function `psych::tetrachoric` to calculate the Tetrachoric correlation from the contingency table directly:
 ```{r}
 tetr_cor <- tetrachoric(ct)
 
@@ -186,9 +188,9 @@ tetr_cor
 ```
 This returns both the Tetrachoric correlation and the values of tau.  These correspond to the quintiles for each margin such that:
 
-$P(D1 = 1) = P(Z_1 > \text{tau}_1) =  1 - P(Z_1 \leq \text{tau}_1) = 1 - 0.35$
+$P(D1 = 1) = P(Z_1 > \tau_1) =  1 - P(Z_1 \leq \tau_1) = 1 - 0.35$
 
-$P(D2 = 1) = P(Z_2 > \text{tau}_2) =  1 - P(Z_2 \leq \text{tau}_2) = 1 - 0.2$
+$P(D2 = 1) = P(Z_2 > \tau_2) =  1 - P(Z_2 \leq \tau_2) = 1 - 0.2$
 
 In other words, for $D_1$ it shows the threshold value such that 35% of its distribution is to the right of the threshold.
 
@@ -309,23 +311,67 @@ $$P(D_1 = 1 | D_2 = 1) = 1 - P(D1 = 0, D2 = 0)$$
 
 We can calculate the probability $p_{00}$ that $D_1 = 0$ and $D_2 = 0$ with:
 
-$$p_{00} = \Phi_2(t_1, t_2; \sigma),$$
+$$p_{00} = \Phi_2(\tau_1, \tau_2; \sigma),$$
 
 ```{r}
 # Calculate the joint probability 
 # that D1=0 and D2=0:
-p_none <- pmvnorm(
-    lower = rep(-Inf, ncol(sigma)), 
+p_00 <- pmvnorm(
+    lower = rep(-Inf, 2), 
     upper = tetr_cor$tau, 
     sigma = sigma
   )
 
-p_none <- as.numeric(p_none)
+p_00 <- as.numeric(p_00)
 
-scales::percent(p_none) 
+scales::percent(p_00) 
 ```
 
-This shows that using a multivariate Normal distribution with the Tetrachoric correlation and the threshold values of each margin, we can retrieve the various probabilities of the contingency table.  
+This matches the observed $p_{00}$.  Similarly we can derive the other probabilities $p_{01}$, $p_{10}$, $p_{11}$ by changing the lower and upper values in `pmvnorm`:
+
+$$p_{11} = P(D_1=1, D_2=1) = P(Z_1 > \tau_1, \; Z_2 > \tau_2)  = P(\tau_1 \leq Z_1 \leq +\infty,\; \tau_2 \leq Z_2 \leq +\infty) $$
+
+so the lower bounds are $[\tau_1, \tau_2]$ and the upper bounds are $[+\infty, +\infty]$ :
+```{r}
+p_11 <- pmvnorm(
+    lower = tetr_cor$tau, 
+    upper = rep(Inf, 2), 
+    sigma = sigma
+  )
+
+p_11 <- as.numeric(p_11)
+
+scales::percent(p_11) 
+```
+
+$$p_{01} = P(D_1=0, D_2=1) = P(Z_1 \leq \tau_1, \; Z_2 > \tau_2)  = P(-\infty \leq Z_1 \leq \tau_1, \; \tau_2 \leq Z_2 \leq +\infty) $$
+```{r}
+p_01 <- pmvnorm(
+    lower = c(-Inf, tetr_cor$tau[2]), 
+    upper = c(tetr_cor$tau[1], Inf), 
+    sigma = sigma
+  )
+
+p_01 <- as.numeric(p_01)
+
+scales::percent(p_01) 
+```
+
+$$p_{10} = P(D_1=1, D_2=0) = P(Z_1 > \tau_1, \; Z_2 \leq \tau_2) = P(\tau_1 \leq Z_1 \leq +\infty, \; -\infty \leq Z_2 \leq \tau_2) $$
+
+```{r}
+p_10 <- pmvnorm(
+    lower = c(tetr_cor$tau[1], -Inf), 
+    upper = c(Inf, tetr_cor$tau[2]), 
+    sigma = sigma
+  )
+
+p_10 <- as.numeric(p_10)
+
+scales::percent(p_10) 
+```
+
+This shows that using a multivariate Normal distribution with the Tetrachoric correlation and the threshold values of each margin, we can retrieve the various probabilities of the contingency table.  In this simple example we only had 2 days but with this method we can retrieve the full frequency distribution of the number of days someone was reached: 0, 1 or 2 days out of 2.  Extending to 7 days is just as easy.
 
 
 # using radio listening dataset
@@ -444,9 +490,11 @@ The weekly reach $R_w$ is bounded by these 2 values:
 
 $$R_w \in [6.4\%, 40,5\%] $$
 
+That's a big range. 
+
 If we had no information on the habitual nature of radio listening throughout the week, we could use the assumption of independence between days to estimate the weekly reach:
 
-$$R_w = 1 - \prod_{d=1}^7 (1 - R_d)$$
+$$R_{w, \text{independence}} = 1 - \prod_{d=1}^7 (1 - R_d)$$
 
 ```{r}
 daily_reach |> 
@@ -459,7 +507,15 @@ To get the estimate using copulas, we need 2 ingredients:
 - the daily margins and their corresponding quantile (threshold) on a standard normal curve Z ~ N(0,1).  
 - the Tetrachoric correlation between all 21 possible pairs of days.   
 
-Then we can use them in a multivariate normal cumulative distribution to estimate the value that corresponds to day 1 = 0, day 2 = 0, ... , day 7 = 0.  
+Then we can use them in a multivariate normal cumulative distribution to estimate the value that corresponds to day 1 = 0, day 2 = 0, ... , day 7 = 0: 
+
+$$ 
+\begin{aligned} 
+R_{w, \text{copula}} &= 1 - P(D_1=0, \ldots, D_7=0) \\ 
+&= 1 - P(Z_1 \leq \tau_1,\ldots, Z_7 \leq \tau_7) \\
+&= 1 - \Phi_7(\tau_1,\tau_2,\tau_3,\tau_4,\tau_5,\tau_6,\tau_7,\sigma) 
+\end{aligned} 
+$$
 
 Starting with the daily margins, for each day we find the quantile that corresponds to the station's daily reach:
 ```{r}
