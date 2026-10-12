@@ -591,6 +591,133 @@ p_none <- as.numeric(p_none)
 This is indeed the actual weekly reach.
 
 
+We can also estimate the full probability distribution over the week, ie the probability that sum(days) = 0,1,..,7. That’s: $2^7 = 128$ possible combinations.
+
+```{r}
+combs <- expand.grid(
+  d1 = 0:1,
+  d2 = 0:1,
+  d3 = 0:1,
+  d4 = 0:1,
+  d5 = 0:1,
+  d6 = 0:1,
+  d7 = 0:1
+)
+
+dim(combs)
+```
+
+```{r}
+head(combs)
+```
+
+Now for each combination we need a specific set of lower and upper bounds, for example if $X_i$ is the binary variable corresponding to the latent $Z_i$ normal distribution then:  
+
+$$ 
+\begin{aligned} 
+P(X_1 = 1,\ X_2 = 1,\ X_3 = 0,\ X_4 = 0,\ X_5 = 0,\ X_6 = 0,\ X_7 = 0) \\ 
+= P(Z_1 > \tau_1,\  Z_2 > \tau_2,\ Z_3 \leq \tau_3,\ Z_4 \leq \tau_4,\ Z_5 \leq \tau_5,\ Z_6 \leq \tau_6,\ Z_7 \leq \tau_7)  \\
+= P(\tau_1 > Z_1 > +\infty,\ \tau_2 > Z_2 > +\infty,\ -\infty \leq Z_3 \leq \tau_3,\ \\ -\infty \leq Z_4 \leq \tau_4,\ -\infty \leq Z_5 \leq \tau_5,\ -\infty \leq Z_6 \leq \tau_6,\ -\infty \leq Z_7 \leq \tau_7) 
+\end{aligned} 
+$$
+
+so the lower bounds are: $\tau_1, \tau_2, -\infty, -\infty, -\infty, -\infty, -\infty$
+
+and the upper bounds are: $+\infty, +\infty, \tau_3, \tau_4,  \tau_5, \tau_6, \tau_7$
+
+```{r}
+combs <- combs |> 
+  mutate(comb_num = row_number()) |> 
+  pivot_longer(d1:d7, names_to = "day") |> 
+  mutate(day = as.numeric(gsub("d", "", day))) |> 
+  # add the thresholds:
+  inner_join(
+    thresholds |> 
+      select(day, threshold),
+    by = "day"
+    ) |> 
+  mutate(
+    lower = if_else(value == 0, -Inf, threshold),
+    upper = if_else(value == 0, threshold, +Inf),
+  )
+
+head(combs, 10)
+```
+
+Now for each combination, calculate the reach:
+```{r}
+my_list <- list()
+
+for(i in 1:n_distinct(combs$comb_num)){
+  
+  lower_bounds <- combs |> 
+      filter(comb_num == i) |> 
+      pull(lower)
+  
+  upper_bounds <- combs |> 
+      filter(comb_num == i) |> 
+      pull(upper)
+  
+  n_days <- combs |> 
+      filter(comb_num == i) |> 
+      summarise(n_days = sum(value)) |> 
+      pull(n_days)
+  
+  reach_pc <- pmvnorm(
+      lower = lower_bounds, 
+      upper = upper_bounds, 
+      sigma = tetra
+    )
+  
+  my_list[[i]] <- data.frame(
+    comb_num = i,
+    n_days = n_days,
+    reach_pc = as.numeric(reach_pc)
+  )
+  
+}
+
+results <- bind_rows(my_list)
+head(results)
+```
+
+Check it sums to 1:
+```{r}
+results |> 
+  summarise(
+    n_rows = n(),
+    n_combs = n_distinct(comb_num),
+    total_reach = round(sum(reach_pc),3)
+  )
+```
+
+
+Then the frequency distribution over the week is:
+```{r}
+freq_distr <- results |> 
+  group_by(n_days) |> 
+  summarise(reach_pc = sum(reach_pc)) |> 
+  ungroup()
+
+freq_distr |> 
+  ggplot(aes(x = n_days, y = reach_pc)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  scale_x_continuous(breaks = 0:7) +
+  scale_y_continuous(labels = scales::percent) +
+  geom_text(
+    aes(label = scales::percent(reach_pc, accuracy = 0.1)),
+    size = 3,
+    vjust = -0.3
+    ) +
+  labs(
+    title = "frequency distribution for number of days",
+    x = "number of days", y = "reach%"
+    )
+```
+
+so 86% didn't get reached that week, 5% got reach on just one day etc... 
+
+
 ## repeat for all stations
 
 For each station we calculate the tetrachoric correlation between all possible pairs of days:
